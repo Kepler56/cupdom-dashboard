@@ -1,1 +1,60 @@
 @import "tailwindcss";
+
+/* ── Charte graphique CUPDOM — Édition 01, juin 2026 ────────
+   Mirrors lib/charte.ts. Change both together; the unit test locks the values.
+   Jaune is the SIGNAL, not the ground: ~12–15% of surface, concentrated in the
+   charts and the single active state. Never text on white. */
+:root {
+  --canvas: #F4EFE3;      /* Crème — le fond */
+  --surface: #FFFFFF;
+  --ink: #111110;         /* Noir d'Encre */
+  --signal: #FCC917;      /* Jaune Soleil */
+  --border: #E7E0D0;      /* teinté chaud, dérivé du crème */
+  --text: #111110;
+  --text-body: #4A4741;
+  --text-muted: #8A8478;
+  --bleu: #003082;
+  --rose: #FF0099;
+  --orange: #F56600;
+  --radius-card: 16px;
+  --radius-pill: 999px;
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-signal: var(--signal);
+  --color-border: var(--border);
+  --color-text: var(--text);
+  --color-text-body: var(--text-body);
+  --color-text-muted: var(--text-muted);
+  --color-bleu: var(--bleu);
+  --color-rose: var(--rose);
+  --color-orange: var(--orange);
+  --radius-card: var(--radius-card);
+  --radius-pill: var(--radius-pill);
+  --font-sans: var(--font-sans), system-ui, sans-serif;
+  --font-display: var(--font-display), system-ui, sans-serif;
+}
+
+body {
+  background-color: var(--canvas);
+  color: var(--text-body);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Titres et grands nombres. Charte §06: tracking serré −2%. */
+.font-display {
+  font-family: var(--font-display), system-ui, sans-serif;
+  letter-spacing: -0.02em;
+}
+
+/* La trame — le point-couvercle répété en grille. Charte §07.
+   Fond discret pour l'écran de connexion et le bandeau d'accueil. */
+.trame-point {
+  background-image: radial-gradient(var(--border) 1.5px, transparent 1.5px);
+  background-size: 22px 22px;
+}
