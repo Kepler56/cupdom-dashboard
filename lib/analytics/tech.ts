@@ -52,15 +52,28 @@ export function humanTechLabel(dimension: TechDimension, raw: string): string {
  * Shares are computed WITHIN a dimension: 88 % mobile means 88 % of scans came
  * from a phone, not 88 % of every technology row. A dimension the RPC does not
  * define is ignored rather than rendered as an unnamed section.
+ *
+ * Rows are re-aggregated on the HUMANISED label, and the order matters: the
+ * scan function stores the raw first Accept-Language token, so `fr-FR`, `fr`,
+ * `fr-fr` and `fr-CA` reach us as four distinct database rows that
+ * `humanTechLabel` then collapses to one « Français ». Mapping one output row
+ * per input row would render « Langue » as several bars all reading
+ * « Français » — fragmented shares, real signal pushed into « Autres » by the
+ * twelve-row cap, and duplicate React keys in `RankedBars`. Aggregating BEFORE
+ * humanisation would not work either: `fr-FR` and `fr` are different keys until
+ * the label function has made them the same word. Same story for `device_type`,
+ * where casing varies.
  */
 export function groupTech(rows: TechRow[]): Record<TechDimension, Ranking> {
   const out = {} as Record<TechDimension, Ranking>;
 
   for (const section of TECH_SECTIONS) {
-    const forDimension = rows
-      .filter((r) => r.dimension === section.id)
-      .map((r) => ({ label: humanTechLabel(section.id, r.label), scans: r.scans }));
-    out[section.id] = buildRanking(forDimension);
+    const totals = new Map<string, number>();
+    for (const r of rows.filter((r) => r.dimension === section.id)) {
+      const label = humanTechLabel(section.id, r.label);
+      totals.set(label, (totals.get(label) ?? 0) + r.scans);
+    }
+    out[section.id] = buildRanking([...totals].map(([label, scans]) => ({ label, scans })));
   }
 
   return out;

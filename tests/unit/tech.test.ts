@@ -79,6 +79,25 @@ describe('groupTech', () => {
     expect(g.device_type.empty).toBe(true);
   });
 
+  // The scan function stores the raw first Accept-Language token, so real
+  // French traffic arrives as several rows — fr-FR, fr, fr-fr, fr-CA — that all
+  // humanise to « Français ». Without re-aggregation the section renders one
+  // bar per raw tag, each with a fragment of the true share, and RankedBars
+  // keys by label so React sees duplicate keys.
+  it('merges rows that humanise to the same label', () => {
+    const g = groupTech([row('language', 'fr-FR', 60), row('language', 'fr', 40)]);
+    expect(g.language.rows).toHaveLength(1);
+    expect(g.language.rows[0].label).toBe('Français');
+    expect(g.language.rows[0].scans).toBe(100);
+  });
+
+  it('merges device types that differ only by case', () => {
+    const g = groupTech([row('device_type', 'Mobile', 30), row('device_type', 'mobile', 70)]);
+    expect(g.device_type.rows).toHaveLength(1);
+    expect(g.device_type.rows[0].label).toBe('Mobile');
+    expect(g.device_type.rows[0].scans).toBe(100);
+  });
+
   it('ignores a dimension the RPC does not define', () => {
     const g = groupTech([...rows, row('screen_size', 'large', 5)]);
     expect(Object.keys(g)).toHaveLength(4);
