@@ -1,12 +1,11 @@
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { GeoLevelPicker } from '@/components/molecules/GeoLevelPicker';
 
-const push = vi.fn();
-
+// No router mock: the picker navigates with <Link>, so there is no push() to
+// observe. Mocking one — and importing userEvent — advertised interaction
+// coverage this file does not have.
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push }),
   usePathname: () => '/audience',
   useSearchParams: () => new URLSearchParams('p=7j&c=nike-ete'),
 }));

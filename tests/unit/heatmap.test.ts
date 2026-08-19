@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildHeatmap,
+  DOW_LABELS,
+  DOW_LABELS_LONG,
   heatColour,
   hourlyTotals,
   weekdayTotals,
@@ -9,6 +11,22 @@ import { CHARTE } from '@/lib/charte';
 import type { HourlyRow } from '@/lib/analytics/types';
 
 const row = (dow: number, hour: number, scans: number): HourlyRow => ({ dow, hour, scans });
+
+// Heatmap.tsx renders one row per DOW_LABELS entry and reads its cells as
+// `cells[index * 24 + h]`, so the array's POSITION is the contract between the
+// grid and its row headers. Reordering it would mislabel every row of the
+// heatmap with nothing failing anywhere.
+describe('DOW_LABELS', () => {
+  it('is in ISO order, lundi first', () => {
+    expect([...DOW_LABELS]).toEqual(['lun', 'mar', 'mer', 'jeu', 'ven', 'sam', 'dim']);
+  });
+
+  it('is index-aligned with its long form', () => {
+    expect([...DOW_LABELS_LONG]).toEqual([
+      'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche',
+    ]);
+  });
+});
 
 describe('heatColour', () => {
   it('starts at the canvas colour so an empty cell disappears into the card', () => {

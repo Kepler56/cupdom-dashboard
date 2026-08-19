@@ -79,7 +79,7 @@ export function RankedBars({
                   // would present an over-count as a measurement.
                   <span className="text-xs text-text-muted">
                     {row.isOther ? '~' : ''}
-                    {row.uniquesLabel} personnes
+                    {row.uniquesLabel} {row.uniques === 1 ? 'personne' : 'personnes'}
                   </span>
                 )}
                 <span className="font-display text-sm font-bold text-ink">{row.scansLabel}</span>

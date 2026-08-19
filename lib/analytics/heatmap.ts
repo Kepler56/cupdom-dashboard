@@ -2,7 +2,14 @@ import { HEATMAP_RAMP } from '@/lib/charte';
 import { formatNumber, formatPercent } from './format';
 import type { HourlyRow } from './types';
 
-/** ISO order: index 0 = lundi … 6 = dimanche, matching `dow` 1..7. */
+/**
+ * ISO order: index 0 = lundi … 6 = dimanche, matching `dow` 1..7.
+ *
+ * The ORDER is load-bearing, not cosmetic: `Heatmap.tsx` renders one row per
+ * entry and reads that row's cells as `cells[index * 24 + h]`, so swapping two
+ * labels would silently mislabel every row of the grid. Pinned by a test for
+ * that reason.
+ */
 export const DOW_LABELS = Object.freeze(['lun', 'mar', 'mer', 'jeu', 'ven', 'sam', 'dim']);
 export const DOW_LABELS_LONG = Object.freeze([
   'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche',

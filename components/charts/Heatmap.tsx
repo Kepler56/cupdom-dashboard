@@ -21,7 +21,7 @@ export function Heatmap({ heatmap }: { heatmap: HeatmapModel }) {
           </caption>
           <thead>
             <tr>
-              <th scope="col" className="w-10">
+              <th className="w-10">
                 <span className="sr-only">Jour</span>
               </th>
               {hours.map((h) => (

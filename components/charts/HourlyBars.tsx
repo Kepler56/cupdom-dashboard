@@ -28,7 +28,7 @@ export function HourlyBars({
             aria-label={`${h.label} — ${h.scansLabel} scans`}
             className="w-full rounded-t-[3px]"
             style={{
-              height: `${Math.max(2, (h.scans / leader) * 100)}%`,
+              height: `${h.scans > 0 ? Math.max(2, (h.scans / leader) * 100) : 0}%`,
               backgroundColor: CHARTE.jaune,
             }}
           />
