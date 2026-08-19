@@ -28,3 +28,6 @@ export async function createServerClient() {
     },
   );
 }
+
+/** The real client type — used wherever a function needs to accept it as a parameter. */
+export type SupabaseServerClient = Awaited<ReturnType<typeof createServerClient>>;

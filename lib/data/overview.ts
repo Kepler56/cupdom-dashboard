@@ -1,8 +1,8 @@
-import { parseCampaign } from '@/lib/analytics/selection';
 import type { CampaignRow, DailyRow, FunnelRow, OverviewRow } from '@/lib/analytics/types';
 import type { PeriodRange } from '@/lib/period';
 import { createServerClient } from '@/lib/supabase/server';
 import { classifyPostgrestError, type DataResult } from './result';
+import { resolveScope } from './scope';
 
 export interface OverviewData {
   campaigns: CampaignRow[];
@@ -37,16 +37,9 @@ export async function fetchOverview(args: {
 }): Promise<DataResult<OverviewData>> {
   const supabase = await createServerClient();
 
-  // Deliberately serialised ahead of the rest: the campaign list is what makes
-  // the `?c=` slug safe to pass on. One extra round-trip on a small query, in
-  // exchange for never turning a typo into « Accès refusé ».
-  const campaignsResponse = await supabase.rpc('client_campaigns');
-  if (campaignsResponse.error) {
-    return { ok: false, failure: classifyPostgrestError(campaignsResponse.error) };
-  }
-
-  const campaigns = (campaignsResponse.data ?? []) as CampaignRow[];
-  const slug = parseCampaign(args.rawSlug, campaigns.map((c) => c.slug));
+  const scope = await resolveScope(supabase, args.rawSlug);
+  if (!scope.ok) return scope;
+  const { campaigns, slug } = scope.data;
 
   const [overview, daily, funnel] = await Promise.all([
     supabase.rpc('client_overview', {
