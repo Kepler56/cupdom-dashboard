@@ -106,4 +106,65 @@ describe('buildFunnel', () => {
     expect(view.stages.every((s) => s.share === 0)).toBe(true);
     expect(view.worstDrop).toBeNull();
   });
+
+  // C2. client_funnel sums coalesce(distributed_count, 0) over every campaign in
+  // scope, so campaign A (500 distributed, 200 scans) + campaign B (no count,
+  // 5 000 scans) arrives here as 500 distribués against 5 200 scannés. Treating
+  // that partial total as a real denominator measures every share against a
+  // number wrong in the FLATTERING direction, and renders visibly broken: the
+  // share clamps to 1 and « 0 % de perte à cette étape » prints between 500 and
+  // 5 200. All-or-nothing, exactly as costPerLead treats invested_amount_eur.
+  it('treats a PARTIAL distributed_count as unknown, not as a denominator', () => {
+    const view = buildFunnel(
+      { distribues: 500, scannes: 5200, formulaire_vu: 3000, formulaire_soumis: 1000, offre_atteinte: 800 },
+      { distributionComplete: false },
+    );
+    expect(view.distributionUnknown).toBe(true);
+    expect(view.stages.map((s) => s.id)).toEqual([
+      'scannes',
+      'formulaire_vu',
+      'formulaire_soumis',
+      'offre_atteinte',
+    ]);
+    // Measured from scannés, not from the half-filled 500.
+    expect(view.stages[0].share).toBe(1);
+    expect(view.stages[1].share).toBeCloseTo(3000 / 5200);
+  });
+
+  it('keeps the historical meaning when the option is absent', () => {
+    expect(buildFunnel(funnel()).distributionUnknown).toBe(false);
+    expect(buildFunnel(funnel(), {}).distributionUnknown).toBe(false);
+    expect(buildFunnel(funnel(), { distributionComplete: true }).distributionUnknown).toBe(false);
+  });
+
+  // I1. The volume floor must guard the denominator the drop is COMPUTED over,
+  // not the head of the funnel. A large print run whose scans have barely
+  // started — week one, which is when a sponsor first logs in — otherwise clears
+  // the guard on 500 distribués and generates « votre plus gros décrochage :
+  // formulaire envoyé — 100 % » out of a single person. Head volume and step
+  // volume are deliberately separated here; the older fixtures set both low.
+  it('does not name a drop computed over a handful of people, however large the print run', () => {
+    const view = buildFunnel({
+      distribues: 500,
+      scannes: 3,
+      formulaire_vu: 1,
+      formulaire_soumis: 0,
+      offre_atteinte: 0,
+    });
+    expect(view.worstDrop).toBeNull();
+  });
+
+  // The mirror of the case above: the same head volume, a step base that clears
+  // the floor, and the sentence is generated as it should be.
+  it('still names a drop once the step it is measured over clears the floor', () => {
+    const view = buildFunnel({
+      distribues: 500,
+      scannes: 100,
+      formulaire_vu: 80,
+      formulaire_soumis: 8,
+      offre_atteinte: 8,
+    });
+    expect(view.worstDrop?.id).toBe('formulaire_soumis');
+    expect(view.worstDrop?.dropLabel).toBe('90\u00A0%');
+  });
 });

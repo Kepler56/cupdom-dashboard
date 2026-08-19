@@ -22,14 +22,23 @@ export interface FunnelStage {
 
 export interface FunnelView {
   stages: FunnelStage[];
-  /** True when no campaign in the selection has a distributed_count. */
+  /**
+   * True when the distribution total is not usable as a denominator — either no
+   * count at all, or a PARTIAL one (at least one campaign in the selection has
+   * no distributed_count). See `buildFunnel`'s `distributionComplete` option.
+   */
   distributionUnknown: boolean;
   worstDrop: { id: FunnelStageId; label: string; dropLabel: string; sentence: string } | null;
 }
 
 /**
- * Below this many people at the top, naming a "biggest drop-off" is
- * storytelling rather than analysis. Spec §4.6-3.
+ * Below this many people AT THE BASE OF A STEP, naming that step the "biggest
+ * drop-off" is storytelling rather than analysis. Spec §4.6-3.
+ *
+ * The floor is on the step's own denominator, not on the head of the funnel: a
+ * large print run whose scans have barely started is exactly what a campaign
+ * looks like in week one, and 500 distribués would otherwise license
+ * « 100 % de décrochage » computed over one person.
  */
 export const MIN_FUNNEL_VOLUME = 20;
 
@@ -48,9 +57,20 @@ const LABELS: Record<FunnelStageId, string> = {
  * is a campaign total, so a funnel filtered to seven days whose first stage
  * still showed the all-time count would be silently, flatteringly wrong
  * (spec §4.9). The UI labels it « depuis le début ».
+ *
+ * `distributionComplete` is all-or-nothing, the same rule `costPerLead` applies
+ * to `invested_amount_eur`, and for the same reason. `client_funnel` sums
+ * `coalesce(distributed_count, 0)` over every campaign in scope, so a selection
+ * where one campaign has a count and another does not yields a PARTIAL total —
+ * 500 distribués against 5 200 scans. Measuring shares against that denominator
+ * is wrong in the flattering direction and renders visibly broken (« 0 % de
+ * perte » between 500 and 5 200). The caller knows which campaigns are in scope
+ * and is the only one who can tell; absent the option we assume completeness so
+ * a bare `buildFunnel(row)` keeps its historical meaning.
  */
-export function buildFunnel(row: FunnelRow): FunnelView {
-  const distributionUnknown = !row.distribues || row.distribues <= 0;
+export function buildFunnel(row: FunnelRow, options?: { distributionComplete?: boolean }): FunnelView {
+  const distributionUnknown =
+    options?.distributionComplete === false || !row.distribues || row.distribues <= 0;
 
   const all: { id: FunnelStageId; value: number }[] = [
     { id: 'distribues', value: row.distribues ?? 0 },
@@ -83,25 +103,27 @@ export function buildFunnel(row: FunnelRow): FunnelView {
     };
   });
 
-  return { stages, distributionUnknown, worstDrop: pickWorstDrop(stages, reference) };
+  return { stages, distributionUnknown, worstDrop: pickWorstDrop(stages) };
 }
 
-function pickWorstDrop(stages: FunnelStage[], reference: number): FunnelView['worstDrop'] {
-  if (reference < MIN_FUNNEL_VOLUME) return null;
-
+function pickWorstDrop(stages: FunnelStage[]): FunnelView['worstDrop'] {
   let worst: FunnelStage | null = null;
-  let worstValue = 0;
-  for (let index = 0; index < stages.length; index += 1) {
+  let worstDropRatio = 0;
+  for (let index = 1; index < stages.length; index += 1) {
     const stage = stages[index];
     // The distribués -> scannés step is excluded from candidacy. It is almost
     // always the largest drop AND it is structural: most covers handed out are
     // simply never scanned. Left in, it would win every single time while
     // telling the sponsor nothing they can act on. The losses worth naming are
     // the ones they can change - the landing page and the form.
-    if (index > 0 && stages[index - 1].id === 'distribues') continue;
-    if (stage.drop !== null && stage.drop > worstValue) {
+    if (stages[index - 1].id === 'distribues') continue;
+    // The floor guards THIS step's denominator, which is the number the drop is
+    // actually computed over. Gating on the head of the funnel instead would let
+    // 500 distribués authorise a « 100 % de décrochage » measured over one person.
+    if (stages[index - 1].value < MIN_FUNNEL_VOLUME) continue;
+    if (stage.drop !== null && stage.drop > worstDropRatio) {
       worst = stage;
-      worstValue = stage.drop;
+      worstDropRatio = stage.drop;
     }
   }
 

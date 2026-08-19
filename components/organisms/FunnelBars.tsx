@@ -10,9 +10,12 @@ import type { FunnelView } from '@/lib/analytics/funnel';
 export function FunnelBars({ funnel }: { funnel: FunnelView }) {
   return (
     <Card title="Le parcours" subtitle="Depuis le début — ce module ne suit pas la période sélectionnée">
+      {/* Covers both cases the view model folds together: no count anywhere, and
+          a count entered for some campaigns but not all. A partial total is not
+          a usable denominator, so the copy must not claim it is one. */}
       {funnel.distributionUnknown && (
         <p className="mb-4 text-xs text-text-muted">
-          Distribués : non renseigné. Le parcours part donc des scans.
+          Distribués : non renseigné pour toutes vos campagnes. Le parcours part donc des scans.
         </p>
       )}
 
