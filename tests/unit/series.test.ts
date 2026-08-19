@@ -67,6 +67,30 @@ describe('fillDailySeries', () => {
     expect(series[0].label).toBe('19 août');
   });
 
+  // The chart's tooltip is a Client Component and must never call Intl itself,
+  // so every value it can display is formatted here. U+202F, not a plain space:
+  // the whole point is that '1 200' would be a regression nobody sees in review.
+  it('attaches a server-formatted fr-FR string for each metric', () => {
+    const series = fillDailySeries(
+      [row('2026-08-19', 1200, 950, 1000)],
+      new Date('2026-08-19T00:00:00Z'),
+      new Date('2026-08-19T12:00:00Z'),
+    );
+    expect(series[0].scansLabel).toBe('1\u202F200');
+    expect(series[0].uniquesLabel).toBe('950');
+    expect(series[0].leadsLabel).toBe('1\u202F000');
+  });
+
+  // Gap-filled days are rendered too, so their labels must exist as well.
+  it('formats the zero of a gap-filled day rather than leaving it undefined', () => {
+    const series = fillDailySeries(
+      [row('2026-08-19', 5)],
+      new Date('2026-08-18T00:00:00Z'),
+      new Date('2026-08-19T12:00:00Z'),
+    );
+    expect(series[0]).toMatchObject({ scansLabel: '0', uniquesLabel: '0', leadsLabel: '0' });
+  });
+
   // Day enumeration is done in UTC arithmetic precisely so that the 25-hour and
   // 23-hour Paris days cannot duplicate or swallow a bucket.
   it('crosses the autumn DST boundary without duplicating or skipping a day', () => {

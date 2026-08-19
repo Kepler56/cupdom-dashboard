@@ -5,8 +5,8 @@ import { ScansArea } from '@/components/charts/ScansArea';
 import type { SeriesPoint } from '@/lib/analytics/series';
 
 const series: SeriesPoint[] = [
-  { day: '2026-08-18', label: '18 août', scans: 40, uniques: 30, leads: 8 },
-  { day: '2026-08-19', label: '19 août', scans: 60, uniques: 50, leads: 12 },
+  { day: '2026-08-18', label: '18 août', scans: 40, uniques: 30, leads: 8, scansLabel: '40', uniquesLabel: '30', leadsLabel: '8' },
+  { day: '2026-08-19', label: '19 août', scans: 60, uniques: 50, leads: 12, scansLabel: '60', uniquesLabel: '50', leadsLabel: '12' },
 ];
 
 /**
@@ -50,10 +50,18 @@ describe('ScansArea', () => {
     // suite's output. Nothing else gets a free pass: a React 19 incompatibility,
     // a prop-type complaint, or a future Recharts deprecation would print a
     // DIFFERENT message and fail this assertion instead of hiding in the spy.
-    for (const call of warnSpy.mock.calls) {
-      expect(call[0]).toMatch(/width\(0\) and height\(0\)/);
+    //
+    // try/finally, not a bare sequence: a FAILING guard throws out of the hook,
+    // and without the finally console.warn would stay stubbed for every
+    // remaining test in this file — turning one red test into a file whose
+    // diagnostics are silently swallowed.
+    try {
+      for (const call of warnSpy.mock.calls) {
+        expect(call[0]).toMatch(/width\(0\) and height\(0\)/);
+      }
+    } finally {
+      warnSpy.mockRestore();
     }
-    warnSpy.mockRestore();
   });
 
   it('offers the three metrics as a toggle', () => {

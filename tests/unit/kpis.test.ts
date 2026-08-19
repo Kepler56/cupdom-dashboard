@@ -10,12 +10,18 @@ const overview = (bucket: 'current' | 'previous', scans: number, uniques: number
   leads,
 });
 
+// The *Label fields exist for the chart's tooltip; buildKpis reads only the
+// numeric columns, so they are filled with String() rather than the real
+// formatter to keep this fixture free of fr-FR separators it never asserts on.
 const point = (day: string, scans: number, uniques: number, leads: number): SeriesPoint => ({
   day,
   label: day,
   scans,
   uniques,
   leads,
+  scansLabel: String(scans),
+  uniquesLabel: String(uniques),
+  leadsLabel: String(leads),
 });
 
 const campaign = (slug: string, over: Partial<CampaignRow> = {}): CampaignRow => ({

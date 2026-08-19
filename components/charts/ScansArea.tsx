@@ -3,18 +3,22 @@
 import { useState } from 'react';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { CHARTE } from '@/lib/charte';
+import { formatNumber } from '@/lib/analytics/format';
 import type { SeriesPoint } from '@/lib/analytics/series';
 
 /**
  * One accent dominates per metric, and none of them is a colour the charte
  * forbids as a fill: Jaune Soleil for volume, Bleu Roi for people, Rose Flash
  * for the contacts that are the point of the whole product.
+ *
+ * `labelKey` names the server-formatted string on each SeriesPoint, so the
+ * tooltip shows « 1 200 » rather than the raw datum.
  */
 const METRICS = [
-  { id: 'scans', label: 'Scans', color: CHARTE.jaune },
-  { id: 'uniques', label: 'Personnes touchées', color: CHARTE.bleu },
-  { id: 'leads', label: 'Contacts', color: CHARTE.rose },
-] as const;
+  { id: 'scans', label: 'Scans', color: CHARTE.jaune, labelKey: 'scansLabel' },
+  { id: 'uniques', label: 'Personnes touchées', color: CHARTE.bleu, labelKey: 'uniquesLabel' },
+  { id: 'leads', label: 'Contacts', color: CHARTE.rose, labelKey: 'leadsLabel' },
+] as const satisfies readonly { id: string; label: string; color: string; labelKey: keyof SeriesPoint }[];
 
 type MetricId = (typeof METRICS)[number]['id'];
 
@@ -24,10 +28,13 @@ type MetricId = (typeof METRICS)[number]['id'];
  * change what is fetched, so putting it in the URL would add a navigation for
  * nothing.
  *
- * Axis labels arrive pre-formatted from the server (`point.label`). Formatting
- * them here would call Intl in the browser, whose ICU data may differ from
- * Node's, and the mismatch would surface as a hydration error on the
- * dashboard's centrepiece.
+ * X-axis labels and every tooltip value arrive pre-formatted from the server
+ * (`point.label`, `point.scansLabel` and friends). Formatting them here would
+ * call Intl in the browser, whose ICU data may differ from Node's, and the
+ * mismatch would surface as a hydration error on the dashboard's centrepiece.
+ *
+ * The Y axis is the one exception, and deliberately so — see the comment on its
+ * tickFormatter below.
  */
 export function ScansArea({ series }: { series: SeriesPoint[] }) {
   const [metric, setMetric] = useState<MetricId>('scans');
@@ -79,6 +86,12 @@ export function ScansArea({ series }: { series: SeriesPoint[] }) {
               axisLine={false}
               width={48}
               tick={{ fill: CHARTE.textMuted, fontSize: 12 }}
+              // The one place a pure formatter runs in the browser, and it cannot
+              // cause a hydration mismatch: the tick values are derived from the
+              // measured domain, and ResponsiveContainer measures its parent —
+              // during SSR it renders nothing at all, so no axis tick is ever
+              // part of the hydrated tree for React to compare against.
+              tickFormatter={formatNumber}
             />
             <Tooltip
               cursor={{ stroke: CHARTE.border }}
@@ -89,7 +102,14 @@ export function ScansArea({ series }: { series: SeriesPoint[] }) {
                 fontSize: 13,
               }}
               labelStyle={{ color: CHARTE.encre, fontWeight: 600 }}
-              formatter={(value: number) => [value, active.label] as [number, string]}
+              // The raw `value` is deliberately ignored. The point being hovered
+              // carries a server-formatted string for each metric; reading the
+              // one matching the active metric keeps the tooltip in fr-FR
+              // without an Intl call in the browser.
+              formatter={(_value, _name, item) => {
+                const point = item?.payload as SeriesPoint | undefined;
+                return [point ? point[active.labelKey] : '', active.label] as [string, string];
+              }}
             />
             <Area
               type="monotone"

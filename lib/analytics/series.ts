@@ -1,4 +1,4 @@
-import { formatDayShort } from './format';
+import { formatDayShort, formatNumber } from './format';
 import type { DailyRow } from './types';
 
 /**
@@ -7,6 +7,12 @@ import type { DailyRow } from './types';
  * `label` is formatted here, on the server, rather than in the Recharts tick
  * formatter — the browser's ICU may not match Node's, and a mismatch would
  * surface as a hydration warning on the dashboard's centrepiece.
+ *
+ * The three `*Label` fields exist for the same reason, one step further: the
+ * tooltip must read « 1 200 » and not « 1200 », and the value it shows is part
+ * of the server-rendered payload. One per metric rather than one for the active
+ * one, because which metric is active is local client state the server cannot
+ * know.
  */
 export interface SeriesPoint {
   day: string;
@@ -14,6 +20,9 @@ export interface SeriesPoint {
   scans: number;
   uniques: number;
   leads: number;
+  scansLabel: string;
+  uniquesLabel: string;
+  leadsLabel: string;
 }
 
 /**
@@ -82,12 +91,18 @@ export function fillDailySeries(rows: DailyRow[], from: Date | null, to: Date): 
   const out: SeriesPoint[] = [];
   for (let day = start; day <= end; day = nextDay(day)) {
     const found = byDay.get(day);
+    const scans = found?.scans ?? 0;
+    const uniques = found?.uniques ?? 0;
+    const leads = found?.leads ?? 0;
     out.push({
       day,
       label: formatDayShort(day),
-      scans: found?.scans ?? 0,
-      uniques: found?.uniques ?? 0,
-      leads: found?.leads ?? 0,
+      scans,
+      uniques,
+      leads,
+      scansLabel: formatNumber(scans),
+      uniquesLabel: formatNumber(uniques),
+      leadsLabel: formatNumber(leads),
     });
   }
   return out;
