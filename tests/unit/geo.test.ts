@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_GEO_LEVEL,
+  defaultGeoLevel,
   geoLevelsFor,
   parseGeoLevel,
   venueAvailable,
@@ -43,6 +44,17 @@ describe('venueAvailable', () => {
   });
 });
 
+describe('defaultGeoLevel', () => {
+  it('lands a nightlife sponsor on the cut they actually bought', () => {
+    expect(defaultGeoLevel(true)).toBe('venue');
+  });
+
+  it('falls back to the city cut when no campaign carries a venue', () => {
+    expect(defaultGeoLevel(false)).toBe('city');
+    expect(defaultGeoLevel(false)).toBe(DEFAULT_GEO_LEVEL);
+  });
+});
+
 describe('parseGeoLevel', () => {
   it('accepts every known level', () => {
     expect(parseGeoLevel('country', false)).toBe('country');
@@ -53,6 +65,14 @@ describe('parseGeoLevel', () => {
   it('falls back to the default on anything unrecognised', () => {
     expect(parseGeoLevel('département', false)).toBe(DEFAULT_GEO_LEVEL);
     expect(parseGeoLevel(undefined, false)).toBe(DEFAULT_GEO_LEVEL);
+  });
+
+  // Spec §4.3-B ranks the venue cut above the geographic one: « le Rex Club a
+  // fait 3× le Badaboum » is what a nightlife sponsor buys. Defaulting them to
+  // « Villes » put the weaker answer in front of them.
+  it('defaults to the venue cut when the selection has venues', () => {
+    expect(parseGeoLevel(undefined, true)).toBe('venue');
+    expect(parseGeoLevel('arrondissement', true)).toBe('venue');
   });
 
   // Asking the RPC for a venue ranking when no campaign has one returns a
