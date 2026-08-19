@@ -29,5 +29,16 @@ export async function createServerClient() {
   );
 }
 
-/** The real client type — used wherever a function needs to accept it as a parameter. */
+/**
+ * The real client type — used wherever a function needs to accept it as a
+ * parameter.
+ *
+ * Do not replace this with a hand-rolled structural type like
+ * `{ rpc: (fn: string, args?: ...) => Promise<{ data; error }> }`. `rpc()`
+ * actually returns a `PostgrestFilterBuilder`, which is a thenable — it has
+ * `.then` — but is not a full `Promise`, so a structural type fails to
+ * type-check against it. It also erases `error` to `unknown`, which is what
+ * forces an `as never` cast to satisfy `classifyPostgrestError` downstream.
+ * Using the real type avoids both problems: no cast is needed anywhere.
+ */
 export type SupabaseServerClient = Awaited<ReturnType<typeof createServerClient>>;

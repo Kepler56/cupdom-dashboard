@@ -1,3 +1,4 @@
+import { selectedCampaigns } from '@/lib/analytics/selection';
 import type { GeoLevel } from '@/lib/analytics/geo';
 import { parseGeoLevel, venueAvailable } from '@/lib/analytics/geo';
 import type { CampaignRow, GeoRow, HourlyRow, TechRow } from '@/lib/analytics/types';
@@ -29,8 +30,16 @@ export async function fetchAudience(args: {
   const { campaigns, slug } = scope.data;
 
   // The venue level only exists when a campaign in scope carries one, so the
-  // level cannot be resolved until the campaign list is in hand.
-  const hasVenue = venueAvailable(campaigns);
+  // level cannot be resolved until the campaign list is in hand. This must be
+  // asked of the SELECTION, not the whole roster: a client with one venue
+  // campaign elsewhere in their roster who filters to a venue-less one would
+  // otherwise still be offered "Lieux", and client_scans_geo(p_level =>
+  // 'venue') would answer with a single "Inconnu" bar — the exact broken-
+  // looking screen venueAvailable exists to prevent, arriving through the
+  // unfiltered roster instead of the URL. selectedCampaigns(campaigns, null)
+  // returns everything, so the unfiltered case is unaffected.
+  const scoped = selectedCampaigns(campaigns, slug);
+  const hasVenue = venueAvailable(scoped);
   const level = parseGeoLevel(args.rawLevel, hasVenue);
 
   const from = args.range.from.toISOString();
