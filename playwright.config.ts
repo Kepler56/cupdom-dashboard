@@ -22,7 +22,12 @@ const PORT = 3210;
 
 export default defineConfig({
   testDir: './tests/e2e',
-  timeout: 30_000,
+  timeout: 60_000,
+  // `expect` defaults to 5s, which is shorter than a cold Next.js dev compile:
+  // the first test to hit a route routinely waits 7-22s while the route builds,
+  // and the resulting failure looks exactly like a broken redirect. Raised so a
+  // timeout means something is actually wrong.
+  expect: { timeout: 20_000 },
   use: { baseURL: `http://localhost:${PORT}` },
   webServer: {
     // The node binary rather than `pnpm dev`: on Windows pnpm is a .cmd/.ps1

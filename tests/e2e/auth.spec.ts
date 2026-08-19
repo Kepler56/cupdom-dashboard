@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { signIn } from './helpers';
 
 const EMAIL = 'portail-e2e@cupdom-test.invalid';
 const PASSWORD = process.env.E2E_PASSWORD;
@@ -33,12 +34,7 @@ test('a client with a temporary password is forced to change it before seeing an
   // — hiding the coverage that can run unattended.
   test.skip(!PASSWORD, 'E2E_PASSWORD not set in .env.local — create the test portal account first');
 
-  await page.goto('/login');
-  await page.getByLabel('Adresse e-mail').fill(EMAIL);
-  await page.getByLabel('Mot de passe').fill(PASSWORD!);
-  await page.getByRole('button', { name: 'Se connecter' }).click();
-
-  await expect(page).toHaveURL(/\/mot-de-passe$/);
+  await signIn(page, EMAIL, PASSWORD!, /\/mot-de-passe$/);
   await expect(page.getByRole('heading', { name: 'Choisissez votre mot de passe.' })).toBeVisible();
 
   // And they cannot slip past it by navigating directly.

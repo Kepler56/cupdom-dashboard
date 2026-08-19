@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { signIn } from './helpers';
 
 const EMAIL = 'portail-e2e-ok@cupdom-test.invalid';
 const PASSWORD = process.env.E2E_PASSWORD_OK;
@@ -8,11 +9,7 @@ const PASSWORD = process.env.E2E_PASSWORD_OK;
 test.beforeEach(async ({ page }) => {
   test.skip(!PASSWORD, 'E2E_PASSWORD_OK not set — create the settled portal account first');
 
-  await page.goto('/login');
-  await page.getByLabel('Adresse e-mail').fill(EMAIL);
-  await page.getByLabel('Mot de passe').fill(PASSWORD!);
-  await page.getByRole('button', { name: 'Se connecter' }).click();
-  await expect(page).toHaveURL(/\/$/);
+  await signIn(page, EMAIL, PASSWORD!, /\/$/);
 });
 
 // Scoped to the KPI grid, not the page. « Personnes touchées » is a KPI label
