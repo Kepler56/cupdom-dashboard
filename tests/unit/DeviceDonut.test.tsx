@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { DeviceDonut } from '@/components/charts/DeviceDonut';
-import { buildRanking } from '@/lib/analytics/ranking';
+import { buildRanking, UNKNOWN_LABEL } from '@/lib/analytics/ranking';
 
 const ranking = buildRanking([
   { label: 'Mobile', scans: 880 },
@@ -42,5 +42,15 @@ describe('DeviceDonut', () => {
   it('renders an empty state rather than an empty ring', () => {
     render(<DeviceDonut ranking={buildRanking([])} />);
     expect(screen.getByText(/pas encore/i)).toBeInTheDocument();
+  });
+
+  // A dimension whose every value is the unknown bucket would draw one full
+  // circle labelled « Inconnu — 100 % ». `Ranking.empty` is what says "this
+  // dimension carries no information", and the donut now reads it.
+  it('says the information could not be determined when every row is unknown', () => {
+    render(<DeviceDonut ranking={buildRanking([{ label: UNKNOWN_LABEL, scans: 500 }])} />);
+    expect(screen.getByText(/pas permis de déterminer/i)).toBeInTheDocument();
+    expect(screen.queryByText(UNKNOWN_LABEL)).toBeNull();
+    expect(screen.queryByText(/pas encore de données/i)).toBeNull();
   });
 });

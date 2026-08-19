@@ -19,6 +19,20 @@ export function RankedBars({ ranking, colour }: { ranking: Ranking; colour: stri
     );
   }
 
+  // `empty` is the OTHER kind of nothing: scans arrived, but every one of them
+  // landed in the « Inconnu » bucket, so the only bar we could draw would read
+  // « Inconnu — 100 % ». Its copy is deliberately not the no-data copy — « nous
+  // n’avons pas pu déterminer » and « pas encore de données » are two different
+  // statements, and conflating them tells the client the wrong thing about
+  // their own campaign.
+  if (ranking.empty) {
+    return (
+      <EmptyState title="Information indisponible">
+        Les scans de la période n’ont pas permis de déterminer cette information.
+      </EmptyState>
+    );
+  }
+
   const leader = ranking.rows[0].scans || 1;
 
   return (

@@ -23,6 +23,18 @@ export function DeviceDonut({ ranking }: { ranking: Ranking }) {
     );
   }
 
+  // Scans arrived but every one of them is « Inconnu »: the ring would be a
+  // single full circle labelled « Inconnu — 100 % », which reads as a finding
+  // rather than as a gap. Distinct copy from the no-data case above, because
+  // « nous ne savons pas » and « il n’y a rien encore » are different claims.
+  if (ranking.empty) {
+    return (
+      <EmptyState title="Information indisponible">
+        Les scans de la période n’ont pas permis de déterminer cette information.
+      </EmptyState>
+    );
+  }
+
   const data = ranking.rows.map((row, i) => ({
     name: row.label,
     value: row.scans,

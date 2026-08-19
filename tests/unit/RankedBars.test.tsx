@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { RankedBars } from '@/components/charts/RankedBars';
-import { buildRanking } from '@/lib/analytics/ranking';
+import { buildRanking, UNKNOWN_LABEL } from '@/lib/analytics/ranking';
 
 const ranking = buildRanking([
   { label: 'Paris', scans: 620, uniques: 480 },
@@ -59,5 +59,19 @@ describe('RankedBars', () => {
   it('renders an empty state rather than an empty list', () => {
     render(<RankedBars ranking={buildRanking([])} colour="#003082" />);
     expect(screen.getByText(/pas encore/i)).toBeInTheDocument();
+  });
+
+  // `client_scans_geo` coalesces a null country/region/city to 'Inconnu', so a
+  // period where geolocation resolved nothing arrives here as a ranking whose
+  // only row is the unknown bucket. `Ranking.empty` exists for exactly that,
+  // and the section must not render one full-width bar reading « Inconnu ».
+  // The copy is distinct from the no-data state on purpose.
+  it('says the information could not be determined when every row is unknown', () => {
+    render(
+      <RankedBars ranking={buildRanking([{ label: UNKNOWN_LABEL, scans: 500 }])} colour="#003082" />,
+    );
+    expect(screen.getByText(/pas permis de déterminer/i)).toBeInTheDocument();
+    expect(screen.queryByText(UNKNOWN_LABEL)).toBeNull();
+    expect(screen.queryByText(/pas encore de données/i)).toBeNull();
   });
 });
