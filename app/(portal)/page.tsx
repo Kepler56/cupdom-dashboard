@@ -119,7 +119,7 @@ export default async function DashboardPage({
         </Card>
 
         <div className="grid gap-6 lg:grid-cols-2">
-          <div data-testid="funnel">
+          <div data-testid="funnel" className="contents">
             <FunnelBars funnel={parcours} />
           </div>
           <CampaignsTable campaigns={scope} />

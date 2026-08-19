@@ -23,10 +23,17 @@ test.beforeEach(async ({ page }) => {
 // creates the accounts and read as a broken product rather than a locator bug.
 test('the four KPI tiles render with French labels', async ({ page }) => {
   const kpis = page.getByTestId('kpi-grid');
-  await expect(kpis.getByText('Personnes touchées')).toBeVisible();
-  await expect(kpis.getByText('Scans totaux')).toBeVisible();
-  await expect(kpis.getByText('Contacts captés')).toBeVisible();
-  await expect(kpis.getByText('Taux de captation')).toBeVisible();
+  // `exact: true` is load-bearing here, not cosmetic. KpiTile renders each
+  // tile's hint a second time as an sr-only <p> for screen readers, and two of
+  // those hints quote other tiles' labels verbatim (the "Contacts captés" hint
+  // mentions "Personnes touchées", and the cost tile's hint mentions "Contacts
+  // captés" too). Playwright's getByText defaults to substring matching, so
+  // the unqualified form resolves to 2-3 elements and toBeVisible (strict)
+  // throws. Do not remove this.
+  await expect(kpis.getByText('Personnes touchées', { exact: true })).toBeVisible();
+  await expect(kpis.getByText('Scans totaux', { exact: true })).toBeVisible();
+  await expect(kpis.getByText('Contacts captés', { exact: true })).toBeVisible();
+  await expect(kpis.getByText('Taux de captation', { exact: true })).toBeVisible();
 });
 
 test('the period selector drives the URL', async ({ page }) => {
