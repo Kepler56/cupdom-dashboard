@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DeviceDonut } from '@/components/charts/DeviceDonut';
 import { buildRanking, UNKNOWN_LABEL } from '@/lib/analytics/ranking';
 
@@ -27,6 +27,33 @@ describe('DeviceDonut', () => {
 
   afterAll(() => {
     vi.unstubAllGlobals();
+  });
+
+  let warnSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    // The 0x0 measurement above is the jsdom limitation, and Recharts warns
+    // about it on every render. That one warning is known, so it is swallowed
+    // here rather than polluting the suite's output — but nothing else gets a
+    // free pass: a React 19 incompatibility or a future Recharts deprecation
+    // prints a DIFFERENT message and fails this assertion instead of hiding in
+    // the spy. The same guard as tests/unit/ScansArea.test.tsx, which this file
+    // had copied the stub from without the guard.
+    //
+    // try/finally, not a bare sequence: a FAILING guard throws out of the hook,
+    // and without the finally console.warn would stay stubbed for every
+    // remaining test in this file.
+    try {
+      for (const call of warnSpy.mock.calls) {
+        expect(call[0]).toMatch(/width\(0\) and height\(0\)/);
+      }
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   // Recharts cannot draw inside jsdom — ResponsiveContainer measures its parent
