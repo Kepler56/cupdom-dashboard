@@ -72,7 +72,15 @@ export function RankedBars({
               <span className={row.isOther ? 'text-text-muted' : 'text-text-body'}>{row.label}</span>
               <span className="flex shrink-0 items-baseline gap-2">
                 {row.uniquesLabel && (
-                  <span className="text-xs text-text-muted">{row.uniquesLabel} personnes</span>
+                  // « ~ » on the rolled-up row only. Its uniques is the SUM of
+                  // per-bucket distinct counts, and one person can appear in
+                  // two buckets, so it is a documented ceiling rather than a
+                  // count — rendering it identically to the exact rows above
+                  // would present an over-count as a measurement.
+                  <span className="text-xs text-text-muted">
+                    {row.isOther ? '~' : ''}
+                    {row.uniquesLabel} personnes
+                  </span>
                 )}
                 <span className="font-display text-sm font-bold text-ink">{row.scansLabel}</span>
                 <span className="w-12 text-right text-xs text-text-muted">{row.shareLabel}</span>

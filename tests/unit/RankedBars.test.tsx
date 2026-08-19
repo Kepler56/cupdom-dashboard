@@ -38,6 +38,16 @@ describe('RankedBars', () => {
     expect(screen.getByText(/480/)).toBeInTheDocument();
   });
 
+  // The « Autres » row sums per-bucket distinct counts, and one person can sit
+  // in two buckets, so its uniques is a ceiling. Printed like the exact rows it
+  // would read as a measurement.
+  it('marks the rolled-up people count as an approximation', () => {
+    const many = Array.from({ length: 6 }, (_, i) => ({ label: `V${i}`, scans: 10 - i, uniques: 5 }));
+    render(<RankedBars ranking={buildRanking(many, 3)} colour="#003082" />);
+    expect(screen.getByText('~15 personnes')).toBeInTheDocument();
+    expect(screen.getAllByText('5 personnes')).toHaveLength(3);
+  });
+
   it('omits the people column when the dimension does not count them', () => {
     const noUniques = buildRanking([{ label: 'Mobile', scans: 880 }]);
     render(<RankedBars ranking={noUniques} colour="#003082" />);

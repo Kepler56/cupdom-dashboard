@@ -74,9 +74,17 @@ export default async function AudiencePage({
           </p>
         </div>
 
+        {/*
+          The subtitle carries the definition of « personnes » because the rows
+          below print one. Spec §4.6-2: that count never appears without saying
+          what it is, and here it is further from a real-person count than the
+          KPI tile's — visitor_hash is salted with the date AND the campaign
+          slug, so one person scanning two campaigns across two nights counts
+          four times.
+        */}
         <Card
           title="Où"
-          subtitle="Classé par scans, sur la période sélectionnée"
+          subtitle="Classé par scans, sur la période sélectionnée. Personnes = comptage unique par jour, par campagne."
           action={<GeoLevelPicker levels={geoLevelsFor(hasVenue)} current={level} />}
         >
           <RankedBars ranking={ranking} colour={CHARTE.bleu} />
