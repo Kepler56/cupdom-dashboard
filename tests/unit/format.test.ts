@@ -6,6 +6,7 @@ import {
   formatNumber,
   formatPercent,
   formatPoints,
+  formatRate,
   formatSignedPercent,
 } from '@/lib/analytics/format';
 
@@ -37,6 +38,27 @@ describe('formatPercent', () => {
 
   it('honours a decimal count', () => {
     expect(formatPercent(0.384, 1)).toBe(`38,4${NBSP}%`);
+  });
+});
+
+describe('formatRate', () => {
+  it('renders a rate as a percentage', () => {
+    expect(formatRate(200, 800)).toBe(`25${NBSP}%`);
+  });
+
+  // The whole reason this helper exists. "0 %" over an empty denominator states
+  // a captation rate for a campaign nobody has reached yet — a claim, not a
+  // measurement. Both the KPI tile and the campaigns table depend on this.
+  it('renders an em dash, not 0 %, when the denominator is zero', () => {
+    expect(formatRate(0, 0)).toBe('—');
+  });
+
+  it('renders an em dash for a negative denominator too', () => {
+    expect(formatRate(5, -1)).toBe('—');
+  });
+
+  it('does not confuse a zero NUMERATOR with a missing denominator', () => {
+    expect(formatRate(0, 800)).toBe(`0${NBSP}%`);
   });
 });
 

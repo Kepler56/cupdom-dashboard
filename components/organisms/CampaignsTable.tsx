@@ -1,6 +1,6 @@
 import { Card } from '@/components/atoms/Card';
 import { EmptyState } from '@/components/molecules/EmptyState';
-import { formatNumber, formatPercent } from '@/lib/analytics/format';
+import { formatNumber, formatRate } from '@/lib/analytics/format';
 import type { CampaignRow } from '@/lib/analytics/types';
 
 /**
@@ -59,7 +59,7 @@ export function CampaignsTable({ campaigns }: { campaigns: CampaignRow[] }) {
                 <td className="py-3 pr-3 text-right tabular-nums">{formatNumber(campaign.uniques)}</td>
                 <td className="py-3 pr-3 text-right tabular-nums">{formatNumber(campaign.leads)}</td>
                 <td className="py-3 text-right tabular-nums">
-                  {campaign.uniques > 0 ? formatPercent(campaign.leads / campaign.uniques) : '—'}
+                  {formatRate(campaign.leads, campaign.uniques)}
                 </td>
               </tr>
             ))}

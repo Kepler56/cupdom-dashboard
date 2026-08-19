@@ -48,6 +48,19 @@ export function formatSignedPercent(ratio: number, digits = 0): string {
 }
 
 /**
+ * A rate as a percentage, or an em dash when there is nothing to divide by.
+ *
+ * The em dash is the load-bearing half. With nobody reached there is no rate to
+ * state, and « 0 % » would be a claim about a captation that has not yet had a
+ * chance to happen. Both the « Taux de captation » tile and the campaigns
+ * table's Taux column had written this rule out longhand, which is one place
+ * too many for a rule this easy to get subtly wrong.
+ */
+export function formatRate(part: number, whole: number): string {
+  return whole > 0 ? formatPercent(part / whole) : '—';
+}
+
+/**
  * A change in a RATE, expressed in points.
  *
  * 20 % → 25 % is "+5 pts". Calling it "+25 %" would be a different and much

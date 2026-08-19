@@ -1,4 +1,4 @@
-import { formatEuros, formatNumber, formatPercent, formatPoints, formatSignedPercent } from './format';
+import { formatEuros, formatNumber, formatPoints, formatRate, formatSignedPercent } from './format';
 import type { SeriesPoint } from './series';
 import type { CampaignRow, OverviewRow } from './types';
 
@@ -138,8 +138,9 @@ export function buildKpis({ current, previous, hasPrevious, series, campaigns }:
     tile(
       'captation',
       'Taux de captation',
-      // An em dash, not "0 %": with nobody reached there is no rate to state.
-      current.uniques > 0 ? formatPercent(current.leads / current.uniques) : '—',
+      // The em dash rather than '0 %' lives in formatRate — same rule, same
+      // wording, as the campaigns table's Taux column.
+      formatRate(current.leads, current.uniques),
       'Contacts captés rapportés aux personnes touchées.',
       computeRateTrend(
         { part: current.leads, whole: current.uniques },
