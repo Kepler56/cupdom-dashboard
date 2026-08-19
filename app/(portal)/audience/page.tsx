@@ -48,6 +48,15 @@ export default async function AudiencePage({
   const byHour = hourlyTotals(hourly);
   const technology = groupTech(tech);
 
+  // Found by id, not `[0]`/`slice(1)`: the donut is hard-wired to
+  // `device_type` specifically (it is the one dimension where "part of a
+  // whole" is the right question), not to "whichever section happens to be
+  // first". Indexing into TECH_SECTIONS would silently mislabel the donut if
+  // that array were ever reordered — no compile error, no failing test.
+  const deviceSection = TECH_SECTIONS.find((s) => s.id === 'device_type');
+  const deviceLabel = deviceSection?.label ?? 'Appareil';
+  const otherSections = TECH_SECTIONS.filter((s) => s.id !== 'device_type');
+
   return (
     <>
       <TopBar
@@ -95,11 +104,11 @@ export default async function AudiencePage({
           <div className="grid gap-8 lg:grid-cols-2">
             <div>
               <h3 className="mb-3 text-xs font-medium uppercase tracking-wide text-text-muted">
-                {TECH_SECTIONS[0].label}
+                {deviceLabel}
               </h3>
               <DeviceDonut ranking={technology.device_type} />
             </div>
-            {TECH_SECTIONS.slice(1).map((section) => (
+            {otherSections.map((section) => (
               <div key={section.id}>
                 <h3 className="mb-3 text-xs font-medium uppercase tracking-wide text-text-muted">
                   {section.label}

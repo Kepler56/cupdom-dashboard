@@ -57,7 +57,7 @@ export function DeviceDonut({ ranking }: { ranking: Ranking }) {
           <li key={row.label} className="flex items-center gap-2 text-sm">
             <span
               aria-hidden="true"
-              className="h-2.5 w-2.5 shrink-0 rounded-full"
+              className="h-2.5 w-2.5 shrink-0 rounded-[var(--radius-pill)]"
               style={{ backgroundColor: CHART_SERIES[i % CHART_SERIES.length] }}
             />
             <span className="flex-1 text-text-body">{row.label}</span>
