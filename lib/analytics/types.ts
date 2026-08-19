@@ -64,3 +64,44 @@ export interface CampaignRow {
   uniques: number;
   leads: number;
 }
+
+/**
+ * `client_scans_geo(p_from, p_to, p_slug, p_level)` — one row per distinct value
+ * of the chosen level, already ordered by scans desc.
+ *
+ * Missing values arrive as the string 'Inconnu', not NULL: the RPC coalesces
+ * them so the portal never renders a nameless bar, and so that "we do not know"
+ * is visible rather than quietly dropped.
+ */
+export interface GeoRow {
+  label: string;
+  scans: number;
+  uniques: number;
+}
+
+/**
+ * `client_scans_hourly(p_from, p_to, p_slug)`.
+ *
+ * `dow` is ISO: 1 = lundi … 7 = dimanche. Both `dow` and `hour` are computed
+ * `at time zone 'Europe/Paris'` inside the RPC — a scan at 00:30 Paris in summer
+ * is 22:30 UTC the previous day, and a UTC heatmap would light up the wrong
+ * night. Cells with no scans are ABSENT from the result.
+ */
+export interface HourlyRow {
+  dow: number;
+  hour: number;
+  scans: number;
+}
+
+/**
+ * `client_scans_tech(p_from, p_to, p_slug)` — four dimensions in one result set:
+ * 'device_type', 'os', 'browser', 'language'.
+ *
+ * Note there is no `uniques` column, unlike GeoRow: technology shares are
+ * shares of SCANS, not of people. The UI must not imply otherwise.
+ */
+export interface TechRow {
+  dimension: string;
+  label: string;
+  scans: number;
+}
