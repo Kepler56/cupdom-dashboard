@@ -1,17 +1,20 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { LoginForm } from '@/components/auth/LoginForm';
 
 const signInWithPassword = vi.fn();
+const rpc = vi.fn().mockResolvedValue({ data: null, error: null });
 vi.mock('@/lib/supabase/client', () => ({
-  createBrowserClient: () => ({ auth: { signInWithPassword } }),
+  createBrowserClient: () => ({ auth: { signInWithPassword }, rpc }),
 }));
 const replace = vi.fn();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ replace, refresh: vi.fn() }) }));
 
 beforeEach(() => {
   signInWithPassword.mockReset();
+  rpc.mockReset();
+  rpc.mockResolvedValue({ data: null, error: null });
   replace.mockReset();
 });
 
@@ -56,5 +59,17 @@ describe('LoginForm', () => {
     await userEvent.click(screen.getByRole('button', { name: /Se connecter|Connexion/ }));
     expect(screen.getByRole('button')).toBeDisabled();
     resolve({ error: null });
+  });
+
+  it('stamps last_login_at after a successful sign-in', async () => {
+    // rpc is part of the mocked Supabase client created by this file's helper.
+    // Assert the call happens, and that it does not gate the redirect.
+    signInWithPassword.mockResolvedValue({ error: null });
+    render(<LoginForm />);
+    await userEvent.type(screen.getByLabelText('Adresse e-mail'), 'client@example.test');
+    await userEvent.type(screen.getByLabelText('Mot de passe'), 'un-mot-de-passe');
+    await userEvent.click(screen.getByRole('button', { name: 'Se connecter' }));
+
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith('client_mark_login'));
   });
 });

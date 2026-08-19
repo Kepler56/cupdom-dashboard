@@ -38,6 +38,12 @@ export function LoginForm({ signOutFirst = false }: { signOutFirst?: boolean }) 
       return;
     }
 
+    // Stamp last_login_at. Fire-and-forget on purpose: this is bookkeeping for
+    // the CRM, and a failure here must never block a successful sign-in. The
+    // RPC's `where auth_user_id = auth.uid()` clause is its own boundary — a
+    // member or anon caller matches no row and changes nothing.
+    void supabase.rpc('client_mark_login');
+
     router.replace('/');
   }
 
