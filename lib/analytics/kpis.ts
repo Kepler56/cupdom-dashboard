@@ -96,6 +96,24 @@ export interface Kpi {
   sparkline: number[];
 }
 
+/**
+ * Why every trend is missing, or null when at least one is shown.
+ *
+ * Spec §4.6-3 says low data must SAY SO. Suppressing the badges is the right
+ * call — a percentage against an empty or tiny previous window is noise — but
+ * suppressing them silently reads as a broken dashboard, which is the failure
+ * this rule exists to prevent. The two causes need different words: "Tout" has
+ * no earlier window by definition, whereas a fixed period simply has nothing
+ * recorded before it yet.
+ */
+export function trendNote(kpis: Kpi[], hasPrevious: boolean): string | null {
+  if (kpis.length === 0) return null;
+  if (kpis.some((k) => k.trend.kind !== 'none')) return null;
+  return hasPrevious
+    ? 'Pas encore assez de données sur la période précédente pour calculer une évolution.'
+    : 'La période « Tout » n’a pas de période précédente à laquelle se comparer.';
+}
+
 export interface KpiInput {
   current: OverviewRow;
   previous: OverviewRow;

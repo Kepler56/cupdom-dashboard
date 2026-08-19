@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildKpis, computeRateTrend, computeTrend, costPerLead } from '@/lib/analytics/kpis';
+import { buildKpis, computeRateTrend, computeTrend, costPerLead, trendNote } from '@/lib/analytics/kpis';
 import type { SeriesPoint } from '@/lib/analytics/series';
 import type { CampaignRow, OverviewRow } from '@/lib/analytics/types';
 
@@ -158,5 +158,28 @@ describe('buildKpis', () => {
 
   it('defines "personnes touchées" in its hint — the daily-uniqueness caveat', () => {
     expect(buildKpis(base)[0].hint).toContain('unique par jour');
+  });
+});
+
+describe('trendNote', () => {
+  const withTrend = (kind: 'up' | 'none') =>
+    ({ id: 'scans', label: 'Scans totaux', value: '1', hint: '', trend: { kind, value: kind === 'up' ? 0.1 : null, unit: 'percent' as const }, trendLabel: null, sparkline: [] });
+
+  it('is silent while at least one tile still shows a trend', () => {
+    expect(trendNote([withTrend('up'), withTrend('none')] as never, true)).toBeNull();
+  });
+
+  // Spec §4.6-3: suppressing every badge is right, doing it silently is not —
+  // it reads as a broken dashboard, which is the failure the rule prevents.
+  it('explains an empty comparison window when the period has one', () => {
+    expect(trendNote([withTrend('none')] as never, true)).toMatch(/période précédente/);
+  });
+
+  it('says something different for « Tout », which has no previous window at all', () => {
+    expect(trendNote([withTrend('none')] as never, false)).toMatch(/Tout/);
+  });
+
+  it('is silent when there are no tiles at all', () => {
+    expect(trendNote([], true)).toBeNull();
   });
 });

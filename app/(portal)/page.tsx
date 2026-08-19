@@ -1,5 +1,5 @@
 import { buildFunnel } from '@/lib/analytics/funnel';
-import { buildKpis } from '@/lib/analytics/kpis';
+import { buildKpis, trendNote } from '@/lib/analytics/kpis';
 import { selectedCampaigns } from '@/lib/analytics/selection';
 import { fillDailySeries } from '@/lib/analytics/series';
 import { fetchOverview } from '@/lib/data/overview';
@@ -65,6 +65,7 @@ export default async function DashboardPage({
   // client_funnel sums coalesce(distributed_count, 0) across the selection, so a
   // total built from only some campaigns is a partial denominator. All-or-nothing,
   // like the cost tile's invested_amount_eur.
+  const note = trendNote(kpis, range.hasPrevious);
   const parcours = buildFunnel(funnel, {
     distributionComplete: scope.length > 0 && scope.every((c) => c.distributed_count !== null && c.distributed_count > 0),
   });
@@ -103,6 +104,8 @@ export default async function DashboardPage({
             <KpiTile key={kpi.id} kpi={kpi} />
           ))}
         </section>
+
+        {note && <p className="-mt-2 text-xs text-text-muted">{note}</p>}
 
         <Card title="Scans dans le temps" subtitle="Par jour, heure de Paris">
           {/* Gated on activity alone. A `series.length > 1` condition also hid the
