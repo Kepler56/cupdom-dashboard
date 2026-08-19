@@ -1,0 +1,156 @@
+import { describe, expect, it } from 'vitest';
+import { buildKpis, computeRateTrend, computeTrend, costPerLead } from '@/lib/analytics/kpis';
+import type { SeriesPoint } from '@/lib/analytics/series';
+import type { CampaignRow, OverviewRow } from '@/lib/analytics/types';
+
+const overview = (bucket: 'current' | 'previous', scans: number, uniques: number, leads: number): OverviewRow => ({
+  bucket,
+  scans,
+  uniques,
+  leads,
+});
+
+const point = (day: string, scans: number, uniques: number, leads: number): SeriesPoint => ({
+  day,
+  label: day,
+  scans,
+  uniques,
+  leads,
+});
+
+const campaign = (slug: string, over: Partial<CampaignRow> = {}): CampaignRow => ({
+  slug,
+  name: slug,
+  sponsor_name: 'Nike',
+  product: 'Couvercle',
+  destination_url: 'https://example.test',
+  active: true,
+  venue: null,
+  distributed_count: 500,
+  invested_amount_eur: null,
+  created_at: '2026-07-01T00:00:00Z',
+  scans: 100,
+  uniques: 80,
+  leads: 20,
+  ...over,
+});
+
+describe('computeTrend', () => {
+  it('reports growth', () => {
+    expect(computeTrend(138, 100, true)).toMatchObject({ kind: 'up', unit: 'percent' });
+    expect(computeTrend(138, 100, true).value).toBeCloseTo(0.38);
+  });
+
+  it('reports decline', () => {
+    expect(computeTrend(50, 100, true).kind).toBe('down');
+  });
+
+  it('reports flat inside the noise band', () => {
+    expect(computeTrend(1000, 1002, true).kind).toBe('flat');
+  });
+
+  it('reports nothing when there is no comparable previous window', () => {
+    expect(computeTrend(500, 0, false)).toMatchObject({ kind: 'none', value: null });
+  });
+
+  // Spec §4.6-3: no flat line dressed up as a trend. 1 → 3 scans is "+200 %".
+  it('reports nothing when the previous window is below the volume floor', () => {
+    expect(computeTrend(3, 1, true).kind).toBe('none');
+  });
+
+  // The floor is on the DENOMINATOR only — a collapse from a real base is real
+  // information and must still be shown.
+  it('still reports a collapse from a large base', () => {
+    expect(computeTrend(3, 200, true).kind).toBe('down');
+  });
+});
+
+describe('computeRateTrend', () => {
+  it('expresses a rate change in points, not as a percentage of a percentage', () => {
+    const trend = computeRateTrend({ part: 25, whole: 100 }, { part: 20, whole: 100 }, true);
+    expect(trend.unit).toBe('points');
+    expect(trend.value).toBeCloseTo(0.05);
+    expect(trend.kind).toBe('up');
+  });
+
+  it('reports nothing when either denominator is too small to mean anything', () => {
+    expect(computeRateTrend({ part: 1, whole: 2 }, { part: 20, whole: 100 }, true).kind).toBe('none');
+    expect(computeRateTrend({ part: 20, whole: 100 }, { part: 1, whole: 2 }, true).kind).toBe('none');
+  });
+});
+
+describe('costPerLead', () => {
+  it('is null when a single campaign in the selection has no amount', () => {
+    expect(costPerLead([campaign('a', { invested_amount_eur: 1200 }), campaign('b')])).toBeNull();
+  });
+
+  it('divides total investment by total captured contacts when every amount is set', () => {
+    expect(
+      costPerLead([
+        campaign('a', { invested_amount_eur: 1200, leads: 300 }),
+        campaign('b', { invested_amount_eur: 1200, leads: 700 }),
+      ]),
+    ).toBeCloseTo(2.4);
+  });
+
+  it('is null when nothing has been captured yet', () => {
+    expect(costPerLead([campaign('a', { invested_amount_eur: 1200, leads: 0 })])).toBeNull();
+  });
+
+  it('is null with no campaigns at all', () => {
+    expect(costPerLead([])).toBeNull();
+  });
+});
+
+describe('buildKpis', () => {
+  const base = {
+    current: overview('current', 1000, 800, 200),
+    previous: overview('previous', 500, 400, 50),
+    hasPrevious: true,
+    series: [point('2026-08-18', 400, 300, 80), point('2026-08-19', 600, 500, 120)],
+    campaigns: [campaign('a')],
+  };
+
+  it('returns the four core tiles, in the spec order', () => {
+    expect(buildKpis(base).map((k) => k.id)).toEqual(['touchees', 'scans', 'contacts', 'captation']);
+  });
+
+  it('formats every value in fr-FR', () => {
+    const kpis = buildKpis(base);
+    expect(kpis[1].value).toBe('1\u202F000');
+    expect(kpis[3].value).toBe('25\u00A0%');
+  });
+
+  it('renders an em dash rather than 0 % when nobody has been reached', () => {
+    const kpis = buildKpis({ ...base, current: overview('current', 0, 0, 0) });
+    expect(kpis[3].value).toBe('—');
+  });
+
+  it('carries the daily values as sparklines for the count tiles only', () => {
+    const kpis = buildKpis(base);
+    expect(kpis[0].sparkline).toEqual([300, 500]);
+    expect(kpis[1].sparkline).toEqual([400, 600]);
+    expect(kpis[2].sparkline).toEqual([80, 120]);
+    // A daily rate over small denominators is noise, not a trend line.
+    expect(kpis[3].sparkline).toEqual([]);
+  });
+
+  it('appends the cost tile when every campaign carries an amount', () => {
+    const kpis = buildKpis({ ...base, campaigns: [campaign('a', { invested_amount_eur: 48, leads: 20 })] });
+    expect(kpis.map((k) => k.id)).toContain('cout');
+    expect(kpis[4].value).toBe('2,40\u00A0€');
+  });
+
+  it('omits the cost tile entirely — not zero, not a dash — when an amount is missing', () => {
+    expect(buildKpis(base).map((k) => k.id)).not.toContain('cout');
+  });
+
+  it('drops every trend when the period has no comparable predecessor', () => {
+    const kpis = buildKpis({ ...base, hasPrevious: false });
+    expect(kpis.every((k) => k.trendLabel === null)).toBe(true);
+  });
+
+  it('defines "personnes touchées" in its hint — the daily-uniqueness caveat', () => {
+    expect(buildKpis(base)[0].hint).toContain('unique par jour');
+  });
+});
