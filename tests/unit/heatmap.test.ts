@@ -108,6 +108,14 @@ describe('hourlyTotals', () => {
   it('labels hours in the French 24-hour form', () => {
     expect(hourlyTotals([]) [9].label).toBe('9 h');
   });
+
+  // Components never format their own numbers — HourlyBars needs a
+  // pre-formatted string to consume, mirroring weekdayTotals' scansLabel.
+  it('pre-formats the count so the component never formats it itself', () => {
+    const t = hourlyTotals([row(6, 23, 40)]);
+    expect(t[23].scansLabel).toBe('40');
+    expect(t[4].scansLabel).toBe('0');
+  });
 });
 
 describe('weekdayTotals', () => {

@@ -1,4 +1,4 @@
-import { DOW_LABELS, type Heatmap as HeatmapModel } from '@/lib/analytics/heatmap';
+import { DOW_LABELS, DOW_LABELS_LONG, type Heatmap as HeatmapModel } from '@/lib/analytics/heatmap';
 
 /**
  * The signature visual: 7 days × 24 hours, heure de Paris.
@@ -30,7 +30,7 @@ export function Heatmap({ heatmap }: { heatmap: HeatmapModel }) {
                   scope="col"
                   className="text-[10px] font-normal text-text-muted"
                 >
-                  {h % 3 === 0 ? h : ''}
+                  <span aria-hidden="true">{h % 3 === 0 ? h : ''}</span>
                   <span className="sr-only">{h} h</span>
                 </th>
               ))}
@@ -40,16 +40,16 @@ export function Heatmap({ heatmap }: { heatmap: HeatmapModel }) {
             {DOW_LABELS.map((day, index) => (
               <tr key={day}>
                 <th scope="row" className="pr-2 text-right text-xs font-normal text-text-muted">
-                  {day}
+                  <span aria-hidden="true">{day}</span>
+                  <span className="sr-only">{DOW_LABELS_LONG[index]}</span>
                 </th>
                 {hours.map((h) => {
                   const cell = heatmap.cells[index * 24 + h];
                   return (
-                    <td key={h} className="p-0">
+                    <td key={h} className="p-0" aria-label={cell.title}>
                       <div
                         data-cell
                         title={cell.title}
-                        aria-label={cell.title}
                         className="h-5 w-full rounded-[3px]"
                         style={{ backgroundColor: cell.colour }}
                       />

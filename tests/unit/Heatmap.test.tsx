@@ -26,6 +26,16 @@ describe('Heatmap', () => {
     expect(container.querySelectorAll('[data-cell]')).toHaveLength(168);
   });
 
+  // Regression: the visible digit and the sr-only label used to run together
+  // in the flattened accessible name (e.g. "1212 h" for the 12 h column),
+  // because JSX drops the whitespace-only text node between two sibling
+  // expressions. A test that only checked the name was PRESENT would have
+  // passed against that broken markup — this pins the exact string.
+  it('gives the 12 h column header the accessible name "12 h", not "1212 h"', () => {
+    render(<Heatmap heatmap={buildHeatmap(rows)} />);
+    expect(screen.getByRole('columnheader', { name: '12 h' })).toBeInTheDocument();
+  });
+
   // The information must not live in the colour alone (WCAG 1.4.1).
   it('gives every cell an accessible description of day, hour and count', () => {
     render(<Heatmap heatmap={buildHeatmap(rows)} />);

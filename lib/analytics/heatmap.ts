@@ -143,6 +143,7 @@ export function hourlyTotals(rows: HourlyRow[]) {
     hour,
     label: `${hour} h`,
     scans,
+    scansLabel: formatNumber(scans),
     share: sum > 0 ? scans / sum : 0,
   }));
 }
