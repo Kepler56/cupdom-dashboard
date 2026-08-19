@@ -2,7 +2,7 @@ import { Card } from '@/components/atoms/Card';
 import { DeviceDonut } from '@/components/charts/DeviceDonut';
 import { Heatmap } from '@/components/charts/Heatmap';
 import { HourlyBars } from '@/components/charts/HourlyBars';
-import { RankedBars } from '@/components/charts/RankedBars';
+import { LowDataNote, RankedBars } from '@/components/charts/RankedBars';
 import { WeekdayBars } from '@/components/charts/WeekdayBars';
 import { AccessDenied } from '@/components/molecules/AccessDenied';
 import { ErrorState } from '@/components/molecules/ErrorState';
@@ -101,6 +101,15 @@ export default async function AudiencePage({
           title="Comment"
           subtitle="Répartition des scans — ces pourcentages portent sur les scans, pas sur les personnes"
         >
+          {/*
+            Once, at the top, rather than once per ranking. The four technology
+            dimensions all count the same scans, so they share one denominator:
+            a client with twelve scans used to read the caveat three times with
+            a confident « Mobile 83 % » donut above them — the honesty rule
+            failing exactly where the most persuasive number sits. device_type
+            is the denominator's stand-in for that reason.
+          */}
+          {!technology.device_type.enoughData && <LowDataNote className="mb-6" />}
           <div className="grid gap-8 lg:grid-cols-2">
             <div>
               <h3 className="mb-3 text-xs font-medium uppercase tracking-wide text-text-muted">
@@ -113,7 +122,7 @@ export default async function AudiencePage({
                 <h3 className="mb-3 text-xs font-medium uppercase tracking-wide text-text-muted">
                   {section.label}
                 </h3>
-                <RankedBars ranking={technology[section.id]} colour={CHARTE.encre} />
+                <RankedBars ranking={technology[section.id]} colour={CHARTE.encre} suppressLowDataNote />
               </div>
             ))}
           </div>

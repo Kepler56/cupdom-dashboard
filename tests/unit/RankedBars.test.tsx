@@ -51,6 +51,21 @@ describe('RankedBars', () => {
     expect(screen.getByText(/trop peu de scans/i)).toBeInTheDocument();
   });
 
+  // The « Comment » card holds four rankings over one denominator, so it states
+  // the caveat once itself instead of letting three rankings repeat it beside a
+  // donut that never showed it at all.
+  it('lets the caller take over the caveat', () => {
+    render(
+      <RankedBars
+        ranking={buildRanking([{ label: 'Paris', scans: 6 }])}
+        colour="#003082"
+        suppressLowDataNote
+      />,
+    );
+    expect(screen.queryByText(/trop peu de scans/i)).toBeNull();
+    expect(screen.getByText('Paris')).toBeInTheDocument();
+  });
+
   it('does not warn once the base is solid', () => {
     render(<RankedBars ranking={ranking} colour="#003082" />);
     expect(screen.queryByText(/trop peu de scans/i)).toBeNull();

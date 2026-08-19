@@ -2,6 +2,19 @@ import { EmptyState } from '@/components/molecules/EmptyState';
 import type { Ranking } from '@/lib/analytics/ranking';
 
 /**
+ * The one wording for « this base is too thin to read as percentages », shared
+ * so the caveat cannot drift between the place a ranking renders it and the
+ * place a card renders it once for several rankings.
+ */
+export function LowDataNote({ className }: { className?: string }) {
+  return (
+    <p className={`text-xs text-text-muted${className ? ` ${className}` : ''}`}>
+      Encore trop peu de scans sur cette période pour que ces pourcentages soient significatifs.
+    </p>
+  );
+}
+
+/**
  * A ranked list is a table of one dimension. Hand-rolled rather than Recharts:
  * the label, the bar, the count and the share all belong on one line, which a
  * chart library fights rather than helps.
@@ -9,8 +22,22 @@ import type { Ranking } from '@/lib/analytics/ranking';
  * Bars are scaled to the LEADER, not to the total. A dimension whose top value
  * holds 30 % would otherwise render as a row of slivers with no visible
  * ranking — the share text carries the absolute proportion.
+ *
+ * `suppressLowDataNote` is for the one case where several rankings share a
+ * denominator: the four technology dimensions all count the same scans, so
+ * letting each render its own caveat prints it three times beside a donut that
+ * prints none. The « Comment » card states it once and silences the rankings.
+ * It never suppresses the caveat where a card holds a single ranking.
  */
-export function RankedBars({ ranking, colour }: { ranking: Ranking; colour: string }) {
+export function RankedBars({
+  ranking,
+  colour,
+  suppressLowDataNote = false,
+}: {
+  ranking: Ranking;
+  colour: string;
+  suppressLowDataNote?: boolean;
+}) {
   if (ranking.rows.length === 0) {
     return (
       <EmptyState title="Pas encore de données">
@@ -37,12 +64,7 @@ export function RankedBars({ ranking, colour }: { ranking: Ranking; colour: stri
 
   return (
     <>
-      {!ranking.enoughData && (
-        <p className="mb-3 text-xs text-text-muted">
-          Encore trop peu de scans sur cette période pour que ces pourcentages soient
-          significatifs.
-        </p>
-      )}
+      {!ranking.enoughData && !suppressLowDataNote && <LowDataNote className="mb-3" />}
       <ol className="flex flex-col gap-3">
         {ranking.rows.map((row) => (
           <li key={row.label}>
