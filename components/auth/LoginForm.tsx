@@ -42,7 +42,15 @@ export function LoginForm({ signOutFirst = false }: { signOutFirst?: boolean }) 
     // the CRM, and a failure here must never block a successful sign-in. The
     // RPC's `where auth_user_id = auth.uid()` clause is its own boundary — a
     // member or anon caller matches no row and changes nothing.
-    void supabase.rpc('client_mark_login');
+    //
+    // `.then()` is what issues the request: postgrest-js's PostgrestBuilder is a
+    // LAZY thenable — the fetch lives inside then() — so `void supabase.rpc(...)`
+    // would build a query and send nothing at all. Both handlers are empty on
+    // purpose: neither outcome may surface to the person signing in.
+    void supabase.rpc('client_mark_login').then(
+      () => {},
+      () => {},
+    );
 
     router.replace('/');
   }

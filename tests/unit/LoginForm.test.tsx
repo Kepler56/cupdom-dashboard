@@ -4,7 +4,34 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { LoginForm } from '@/components/auth/LoginForm';
 
 const signInWithPassword = vi.fn();
-const rpc = vi.fn().mockResolvedValue({ data: null, error: null });
+
+/**
+ * The rpc mock is BUILDER-SHAPED, not a resolved promise, and that is the whole
+ * point of it.
+ *
+ * postgrest-js's PostgrestBuilder is a lazy thenable: the fetch is inside
+ * `then()` (dist/index.mjs — `executeWithRetry` is created and awaited there).
+ * A `vi.fn().mockResolvedValue(...)` mock therefore cannot distinguish
+ * `supabase.rpc('x')` from `supabase.rpc('x').then(...)` — the first builds a
+ * query and sends NOTHING, and both satisfy `toHaveBeenCalledWith`. Mirroring
+ * the laziness here means `sent` flips only when the caller does the one thing
+ * that puts an HTTP request on the wire.
+ */
+let sent = false;
+
+function builder() {
+  return {
+    then(
+      onFulfilled?: (value: { data: null; error: null }) => unknown,
+      onRejected?: (reason: unknown) => unknown,
+    ) {
+      sent = true;
+      return Promise.resolve({ data: null, error: null }).then(onFulfilled, onRejected);
+    },
+  };
+}
+
+const rpc = vi.fn(builder);
 vi.mock('@/lib/supabase/client', () => ({
   createBrowserClient: () => ({ auth: { signInWithPassword }, rpc }),
 }));
@@ -14,8 +41,9 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ replace, refresh: vi.fn(
 beforeEach(() => {
   signInWithPassword.mockReset();
   rpc.mockReset();
-  rpc.mockResolvedValue({ data: null, error: null });
+  rpc.mockImplementation(builder);
   replace.mockReset();
+  sent = false;
 });
 
 describe('LoginForm', () => {
@@ -61,9 +89,12 @@ describe('LoginForm', () => {
     resolve({ error: null });
   });
 
-  it('stamps last_login_at after a successful sign-in', async () => {
-    // rpc is part of the mocked Supabase client created by this file's helper.
-    // Assert the call happens, and that it does not gate the redirect.
+  it('actually SENDS client_mark_login after a successful sign-in, not just builds it', async () => {
+    // Two assertions, and the second is the one that matters. `rpc` having been
+    // called proves only that a query object was constructed; `sent` proves the
+    // builder was awaited, which is what puts the request on the wire. Against
+    // a bare `void supabase.rpc('client_mark_login')` the first passes and the
+    // second fails — which is exactly the bug this test exists to catch.
     signInWithPassword.mockResolvedValue({ error: null });
     render(<LoginForm />);
     await userEvent.type(screen.getByLabelText('Adresse e-mail'), 'client@example.test');
@@ -71,5 +102,6 @@ describe('LoginForm', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Se connecter' }));
 
     await waitFor(() => expect(rpc).toHaveBeenCalledWith('client_mark_login'));
+    expect(sent).toBe(true);
   });
 });
