@@ -12,10 +12,13 @@
 export function Point({
   size = 12,
   filled = true,
+  hole = 'var(--canvas)',
   className,
 }: {
   size?: number;
   filled?: boolean;
+  /** The straw hole is painted, not cut. On a white surface pass 'var(--surface)'. */
+  hole?: string;
   className?: string;
 }) {
   return (
@@ -28,7 +31,7 @@ export function Point({
       focusable="false"
     >
       <circle cx="12" cy="12" r="11" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={filled ? 0 : 2} />
-      <circle cx="12" cy="12" r="2.4" fill="var(--canvas)" />
+      <circle cx="12" cy="12" r="2.4" fill={hole} />
     </svg>
   );
 }

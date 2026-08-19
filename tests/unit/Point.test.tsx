@@ -25,6 +25,14 @@ describe('Point — le point-couvercle', () => {
     const { container } = render(<Point />);
     expect(container.querySelector('svg')!.getAttribute('aria-hidden')).toBe('true');
   });
+
+  // The hole is painted, not cut, so on a white card the default crème fill
+  // reads as a beige dot rather than as the straw hole.
+  it('accepts an explicit hole colour for use on white surfaces', () => {
+    const { container } = render(<Point hole="var(--surface)" />);
+    const circles = container.querySelectorAll('circle');
+    expect(circles[1].getAttribute('fill')).toBe('var(--surface)');
+  });
 });
 
 describe('Spinner', () => {
