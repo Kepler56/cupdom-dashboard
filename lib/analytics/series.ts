@@ -62,22 +62,24 @@ function spanDays(startIso: string, endIso: string): number {
 }
 
 /**
- * Turn the sparse RPC result into a continuous daily series.
+ * The continuous list of Paris calendar dates a chart should draw.
  *
- * `client_scans_daily` omits days with no activity. Charted as-is, a gap
- * becomes a straight line between two real values — a quiet week would render
- * as a gentle slope instead of a flat zero. Every missing day is materialised
- * at zero.
+ * Extracted from `fillDailySeries` because the campaigns table needs the SAME
+ * window for every row. Two sparklines side by side are only comparable if they
+ * span the same days: a campaign launched three days ago whose curve started at
+ * its own first scan would render at the same width as one running for six
+ * months, and the eye would read the two as equivalent. One window, computed
+ * once, handed to every row.
  *
  * `from = null` means "start where the data starts", which is what the 'tout'
- * preset needs: its resolved `from` is the epoch.
+ * preset needs: its resolved `from` is the epoch. `presentDays` is the set of
+ * days that actually carry data — it does not need to be sorted or unique.
  *
- * The last day is included even though it is only partial — a dashboard that
- * hid today would be stranger than one that shows it filling up.
+ * The last day is included even though it is only partial. A dashboard that hid
+ * today would be stranger than one that shows it filling up.
  */
-export function fillDailySeries(rows: DailyRow[], from: Date | null, to: Date): SeriesPoint[] {
-  const byDay = new Map(rows.map((r) => [r.day, r]));
-  const present = [...byDay.keys()].sort();
+export function seriesWindow(presentDays: string[], from: Date | null, to: Date): string[] {
+  const present = [...new Set(presentDays)].sort();
 
   let start = from ? parisDay(from) : present[0];
   if (!start) return [];
@@ -88,13 +90,29 @@ export function fillDailySeries(rows: DailyRow[], from: Date | null, to: Date): 
     start = present[0];
   }
 
-  const out: SeriesPoint[] = [];
-  for (let day = start; day <= end; day = nextDay(day)) {
+  // `end < start` needs no special case: the loop simply yields nothing.
+  const days: string[] = [];
+  for (let day = start; day <= end; day = nextDay(day)) days.push(day);
+  return days;
+}
+
+/**
+ * Turn the sparse RPC result into a continuous daily series.
+ *
+ * `client_scans_daily` omits days with no activity. Charted as-is, a gap
+ * becomes a straight line between two real values — a quiet week would render
+ * as a gentle slope instead of a flat zero. Every missing day is materialised
+ * at zero.
+ */
+export function fillDailySeries(rows: DailyRow[], from: Date | null, to: Date): SeriesPoint[] {
+  const byDay = new Map(rows.map((r) => [r.day, r]));
+
+  return seriesWindow([...byDay.keys()], from, to).map((day) => {
     const found = byDay.get(day);
     const scans = found?.scans ?? 0;
     const uniques = found?.uniques ?? 0;
     const leads = found?.leads ?? 0;
-    out.push({
+    return {
       day,
       label: formatDayShort(day),
       scans,
@@ -103,7 +121,6 @@ export function fillDailySeries(rows: DailyRow[], from: Date | null, to: Date): 
       scansLabel: formatNumber(scans),
       uniquesLabel: formatNumber(uniques),
       leadsLabel: formatNumber(leads),
-    });
-  }
-  return out;
+    };
+  });
 }

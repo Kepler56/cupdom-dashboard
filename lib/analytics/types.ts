@@ -105,3 +105,20 @@ export interface TechRow {
   label: string;
   scans: number;
 }
+
+/**
+ * `client_campaigns_daily(p_from, p_to)` — the daily scan curve for every
+ * campaign the caller owns, in one call.
+ *
+ * `day` is a Paris CALENDAR DATE ('2026-08-19'), like DailyRow's. Days with no
+ * scans are ABSENT, and so is any campaign with no scans in the window at all —
+ * so the consumer must be told which slugs to expect rather than inferring them
+ * from the rows. See lib/analytics/campaignSeries.ts.
+ *
+ * No `uniques` and no `leads`: the only consumer is a sparkline.
+ */
+export interface CampaignDailyRow {
+  slug: string;
+  day: string;
+  scans: number;
+}
