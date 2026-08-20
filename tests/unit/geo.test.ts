@@ -44,58 +44,42 @@ describe('venueAvailable', () => {
   });
 });
 
+// Stage 3B: venue left the geography picker to become its own card (spec
+// §4.3-B). `GeoLevel` still has a 'venue' member for `levelParam` and the
+// direct `client_scans_geo(p_level => 'venue')` call, but the three functions
+// below now only ever offer or resolve to the three GEOGRAPHIC cuts.
 describe('defaultGeoLevel', () => {
-  it('lands a nightlife sponsor on the cut they actually bought', () => {
-    expect(defaultGeoLevel(true)).toBe('venue');
-  });
-
-  it('falls back to the city cut when no campaign carries a venue', () => {
-    expect(defaultGeoLevel(false)).toBe('city');
-    expect(defaultGeoLevel(false)).toBe(DEFAULT_GEO_LEVEL);
+  it('defaults to villes, because a French sponsor’s country ranking is one bar', () => {
+    expect(defaultGeoLevel()).toBe('city');
+    expect(defaultGeoLevel()).toBe(DEFAULT_GEO_LEVEL);
   });
 });
 
 describe('parseGeoLevel', () => {
-  it('accepts every known level', () => {
-    expect(parseGeoLevel('country', false)).toBe('country');
-    expect(parseGeoLevel('region', false)).toBe('region');
-    expect(parseGeoLevel('city', false)).toBe('city');
+  it('accepts every known geographic level', () => {
+    expect(parseGeoLevel('country')).toBe('country');
+    expect(parseGeoLevel('region')).toBe('region');
+    expect(parseGeoLevel('city')).toBe('city');
   });
 
   it('falls back to the default on anything unrecognised', () => {
-    expect(parseGeoLevel('département', false)).toBe(DEFAULT_GEO_LEVEL);
-    expect(parseGeoLevel(undefined, false)).toBe(DEFAULT_GEO_LEVEL);
+    expect(parseGeoLevel('département')).toBe(DEFAULT_GEO_LEVEL);
+    expect(parseGeoLevel(undefined)).toBe(DEFAULT_GEO_LEVEL);
   });
 
-  // Spec §4.3-B ranks the venue cut above the geographic one: « le Rex Club a
-  // fait 3× le Badaboum » is what a nightlife sponsor buys. Defaulting them to
-  // « Villes » put the weaker answer in front of them.
-  it('defaults to the venue cut when the selection has venues', () => {
-    expect(parseGeoLevel(undefined, true)).toBe('venue');
-    expect(parseGeoLevel('arrondissement', true)).toBe('venue');
-  });
-
-  // Asking the RPC for a venue ranking when no campaign has one returns a
-  // single « Inconnu » bar, which looks like a bug. The URL cannot select it.
-  it('refuses the venue level when no campaign carries a venue', () => {
-    expect(parseGeoLevel('venue', false)).toBe(DEFAULT_GEO_LEVEL);
-  });
-
-  it('allows the venue level when one does', () => {
-    expect(parseGeoLevel('venue', true)).toBe('venue');
+  it('no longer accepts venue as a LEVEL — it is its own dimension now', () => {
+    // ?geo=venue was a valid URL in stage 3A. It must degrade to the default
+    // rather than 404 or throw: a bookmarked link is not an error.
+    expect(parseGeoLevel('venue')).toBe('city');
   });
 });
 
 describe('geoLevelsFor', () => {
-  it('offers three levels without venues', () => {
-    expect(geoLevelsFor(false).map((l) => l.id)).toEqual(['country', 'region', 'city']);
-  });
-
-  it('offers four with them, venue first — it is the commercially useful cut', () => {
-    expect(geoLevelsFor(true).map((l) => l.id)).toEqual(['venue', 'country', 'region', 'city']);
+  it('offers only the three geographic cuts', () => {
+    expect(geoLevelsFor().map((l) => l.id)).toEqual(['country', 'region', 'city']);
   });
 
   it('labels every level in French', () => {
-    expect(geoLevelsFor(true).map((l) => l.label)).toEqual(['Lieux', 'Pays', 'Régions', 'Villes']);
+    expect(geoLevelsFor().map((l) => l.label)).toEqual(['Pays', 'Régions', 'Villes']);
   });
 });

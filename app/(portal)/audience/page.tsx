@@ -40,9 +40,10 @@ export default async function AudiencePage({
     );
   }
 
-  const { campaigns, slug, level, hasVenue, geo, hourly, tech } = result.data;
+  const { campaigns, slug, level, hasVenue, geo, venue, hourly, tech } = result.data;
 
   const ranking = buildRanking(geo);
+  const lieux = buildRanking(venue);
   const heatmap = buildHeatmap(hourly);
   const byWeekday = weekdayTotals(hourly);
   const byHour = hourlyTotals(hourly);
@@ -75,6 +76,31 @@ export default async function AudiencePage({
         </div>
 
         {/*
+          Spec §4.3-B: the venue ranking sits ABOVE the geographic one, both
+          visible at once — for a nightlife sponsor « le Rex Club a fait 3× le
+          Badaboum » and « Paris = 62 % » answer different questions and the
+          client wants both. Stage 3A shipped venue as a fourth tab on the
+          picker below, which made the two mutually exclusive; this card is
+          the fix. Bleu Roi because it is part of the « Où » view (spec §3.2:
+          one accent per view), not a new one.
+
+          The subtitle states spec §4.8's granularity limit plainly rather
+          than let it surprise anyone: venue lives on the CAMPAIGN, so it only
+          distinguishes venues when a campaign maps to one; a campaign
+          distributed across five clubs cannot be split, and without this line
+          a sponsor could conclude one club outperformed another when both
+          were served by the same campaign.
+        */}
+        {hasVenue && (
+          <Card
+            title="Lieux / événements"
+            subtitle="Classé par scans. Un lieu par campagne : une campagne distribuée dans plusieurs clubs ne peut pas être ventilée."
+          >
+            <RankedBars ranking={lieux} colour={CHARTE.bleu} />
+          </Card>
+        )}
+
+        {/*
           The subtitle carries the definition of « personnes » because the rows
           below print one. Spec §4.6-2: that count never appears without saying
           what it is, and here it is further from a real-person count than the
@@ -85,7 +111,7 @@ export default async function AudiencePage({
         <Card
           title="Où"
           subtitle="Classé par scans, sur la période sélectionnée. Personnes = comptage unique par jour, par campagne."
-          action={<GeoLevelPicker levels={geoLevelsFor(hasVenue)} current={level} />}
+          action={<GeoLevelPicker levels={geoLevelsFor()} current={level} />}
         >
           <RankedBars ranking={ranking} colour={CHARTE.bleu} />
         </Card>

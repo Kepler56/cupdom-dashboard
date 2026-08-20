@@ -14,9 +14,15 @@ export interface AudienceData {
   level: GeoLevel;
   hasVenue: boolean;
   geo: GeoRow[];
+  venue: GeoRow[];
   hourly: HourlyRow[];
   tech: TechRow[];
 }
+
+// Placeholder for the skipped venue call — typed explicitly so it stays
+// assignable alongside a real PostgrestBuilder response rather than reaching
+// for `as any`.
+const NO_ROWS: { data: GeoRow[]; error: null } = { data: [], error: null };
 
 export async function fetchAudience(args: {
   range: PeriodRange;
@@ -40,18 +46,25 @@ export async function fetchAudience(args: {
   // returns everything, so the unfiltered case is unaffected.
   const scoped = selectedCampaigns(campaigns, slug);
   const hasVenue = venueAvailable(scoped);
-  const level = parseGeoLevel(args.rawLevel, hasVenue);
+  const level = parseGeoLevel(args.rawLevel);
 
   const from = args.range.from.toISOString();
   const to = args.range.to.toISOString();
 
-  const [geo, hourly, tech] = await Promise.all([
+  const [geo, venue, hourly, tech] = await Promise.all([
     supabase.rpc('client_scans_geo', { p_from: from, p_to: to, p_slug: slug, p_level: levelParam(level) }),
+    // Spec §4.3-B: the venue ranking sits ABOVE geography, not instead of it, so
+    // this is a second call rather than a different p_level on the first. Skipped
+    // entirely when no campaign in the selection carries a venue — the RPC would
+    // answer with a single « Inconnu » bar and the card is hidden anyway.
+    hasVenue
+      ? supabase.rpc('client_scans_geo', { p_from: from, p_to: to, p_slug: slug, p_level: 'venue' })
+      : Promise.resolve(NO_ROWS),
     supabase.rpc('client_scans_hourly', { p_from: from, p_to: to, p_slug: slug }),
     supabase.rpc('client_scans_tech', { p_from: from, p_to: to, p_slug: slug }),
   ]);
 
-  const failed = [geo, hourly, tech].find((r) => r.error);
+  const failed = [geo, venue, hourly, tech].find((r) => r.error);
   if (failed) return { ok: false, failure: classifyPostgrestError(failed.error) };
 
   return {
@@ -62,6 +75,7 @@ export async function fetchAudience(args: {
       level,
       hasVenue,
       geo: (geo.data ?? []) as GeoRow[],
+      venue: (venue.data ?? []) as GeoRow[],
       hourly: (hourly.data ?? []) as HourlyRow[],
       tech: (tech.data ?? []) as TechRow[],
     },
