@@ -41,13 +41,21 @@ export default async function DashboardPage({
     );
   }
 
-  const { campaigns, slug, current, previous, daily, funnel } = result.data;
+  const { campaigns, slug, current, previous, daily, funnel, sparklines } = result.data;
 
   // The `?c=` filter means ONE thing across the whole screen. Every module below
   // — KPIs, cost tile, chart, funnel, table — reads this one narrowed list, so a
   // client on ?c=nike-hiver never sees one campaign's figures beside a table
   // listing all of them.
   const scope = selectedCampaigns(campaigns, slug);
+
+  // The `?c=` filter narrows this table like everything else on the page, so
+  // the curves are narrowed with it. Entries can be missing when the sparkline
+  // RPC degraded (see lib/data/campaigns.ts), which is why this filters rather
+  // than indexing blindly.
+  const scopedSparklines = Object.fromEntries(
+    scope.flatMap((c) => (sparklines[c.slug] ? [[c.slug, sparklines[c.slug]] as const] : [])),
+  );
 
   // `from = null` for the 'tout' preset: resolvePeriod returns the epoch there,
   // and the series must start where the data starts, not in 1970. Tested against
@@ -125,7 +133,7 @@ export default async function DashboardPage({
           <div data-testid="funnel" className="contents">
             <FunnelBars funnel={parcours} />
           </div>
-          <CampaignsTable campaigns={scope} />
+          <CampaignsTable campaigns={scope} sparklines={scopedSparklines} />
         </div>
       </main>
     </>

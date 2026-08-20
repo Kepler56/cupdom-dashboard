@@ -1,6 +1,8 @@
+import type { CampaignSparkline } from '@/lib/analytics/campaignSeries';
 import type { CampaignRow, DailyRow, FunnelRow, OverviewRow } from '@/lib/analytics/types';
 import type { PeriodRange } from '@/lib/period';
 import { createServerClient } from '@/lib/supabase/server';
+import { loadSparklines } from './campaigns';
 import { classifyPostgrestError, type DataResult } from './result';
 import { resolveScope } from './scope';
 
@@ -12,6 +14,7 @@ export interface OverviewData {
   previous: OverviewRow;
   daily: DailyRow[];
   funnel: FunnelRow;
+  sparklines: Record<string, CampaignSparkline>;
 }
 
 const EMPTY_FUNNEL: FunnelRow = {
@@ -72,6 +75,10 @@ export async function fetchOverview(args: {
       previous: buckets.find((b) => b.bucket === 'previous') ?? emptyBucket('previous'),
       daily: (daily.data ?? []) as DailyRow[],
       funnel: ((funnel.data ?? []) as FunnelRow[])[0] ?? EMPTY_FUNNEL,
+      // Sequential, after the three parallel reads rather than inside them:
+      // this one cannot fail the page, so it must not be able to land in the
+      // `[overview, daily, funnel].find(r => r.error)` check above.
+      sparklines: await loadSparklines(supabase, args.range, campaigns.map((c) => c.slug)),
     },
   };
 }
