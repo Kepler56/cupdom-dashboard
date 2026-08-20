@@ -1,11 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  DEFAULT_GEO_LEVEL,
-  defaultGeoLevel,
-  geoLevelsFor,
-  parseGeoLevel,
-  venueAvailable,
-} from '@/lib/analytics/geo';
+import { DEFAULT_GEO_LEVEL, geoLevelsFor, parseGeoLevel, venueAvailable } from '@/lib/analytics/geo';
 import type { CampaignRow } from '@/lib/analytics/types';
 
 const campaign = (venue: string | null): CampaignRow => ({
@@ -48,10 +42,9 @@ describe('venueAvailable', () => {
 // §4.3-B). `GeoLevel` still has a 'venue' member for `levelParam` and the
 // direct `client_scans_geo(p_level => 'venue')` call, but the three functions
 // below now only ever offer or resolve to the three GEOGRAPHIC cuts.
-describe('defaultGeoLevel', () => {
-  it('defaults to villes, because a French sponsor’s country ranking is one bar', () => {
-    expect(defaultGeoLevel()).toBe('city');
-    expect(defaultGeoLevel()).toBe(DEFAULT_GEO_LEVEL);
+describe('DEFAULT_GEO_LEVEL', () => {
+  it('is villes, because a French sponsor’s country ranking is one bar reading « France »', () => {
+    expect(DEFAULT_GEO_LEVEL).toBe('city');
   });
 });
 

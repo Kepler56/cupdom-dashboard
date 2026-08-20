@@ -8,12 +8,20 @@ import type { CampaignRow } from './types';
  */
 export type GeoLevel = 'country' | 'region' | 'city' | 'venue';
 
+/**
+ * Labels for the three cuts the picker offers.
+ *
+ * `Exclude<GeoLevel, 'venue'>` and not `Record<GeoLevel, string>`: venue is a
+ * level the RPC accepts, but it is no longer a tab, so a « Lieux » label here
+ * was unreachable code left over from the round that moved venue to its own
+ * card — GEO_LEVELS never asks for it. The Exclude keeps the exhaustiveness
+ * check that a new geographic cut must be labelled.
+ */
 const LEVELS = Object.freeze({
-  venue: 'Lieux',
   country: 'Pays',
   region: 'Régions',
   city: 'Villes',
-} as const satisfies Record<GeoLevel, string>);
+} as const satisfies Record<Exclude<GeoLevel, 'venue'>, string>);
 
 /**
  * City, not country: a French sponsor's country ranking is one bar reading
@@ -21,10 +29,6 @@ const LEVELS = Object.freeze({
  * actually lives.
  */
 export const DEFAULT_GEO_LEVEL: GeoLevel = 'city';
-
-export function defaultGeoLevel(): GeoLevel {
-  return DEFAULT_GEO_LEVEL;
-}
 
 /**
  * The three cuts of ONE dimension — where the person was.
