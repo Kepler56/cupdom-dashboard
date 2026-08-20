@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { CampaignsTable } from '@/components/organisms/CampaignsTable';
+import { MIN_SPARKLINE_VOLUME } from '@/lib/analytics/campaignSeries';
 import type { CampaignRow } from '@/lib/analytics/types';
 
 const campaign = (over: Partial<CampaignRow> = {}): CampaignRow => ({
@@ -80,13 +81,18 @@ describe('CampaignsTable \u2014 stage 3B additions', () => {
       />,
     );
     expect(
-      screen.getByText('Totaux depuis le d\u00E9but \u00B7 courbe sur la p\u00E9riode s\u00E9lectionn\u00E9e', { collapseWhitespace: false }),
+      screen.getByText(
+        'Totaux depuis le d\u00E9but \u00B7 courbe sur la p\u00E9riode s\u00E9lectionn\u00E9e. Personnes = comptage unique par jour, par campagne.',
+        { collapseWhitespace: false },
+      ),
     ).toBeInTheDocument();
   });
 
   it('keeps the lifetime-only subtitle when there is no curve to explain', () => {
     render(<CampaignsTable campaigns={[campaign()]} />);
-    expect(screen.getByText('Totaux depuis le d\u00E9but')).toBeInTheDocument();
+    expect(
+      screen.getByText('Totaux depuis le d\u00E9but. Personnes = comptage unique par jour, par campagne.'),
+    ).toBeInTheDocument();
   });
 
   it('accepts a title, so the page that is ABOUT campaigns does not say \u00AB Vos campagnes \u00BB twice', () => {
@@ -99,5 +105,81 @@ describe('CampaignsTable \u2014 stage 3B additions', () => {
     // migration has not been applied, so every lookup misses.
     render(<CampaignsTable campaigns={[campaign()]} sparklines={{}} />);
     expect(screen.getByText('Nike \u00E9t\u00E9')).toBeInTheDocument();
+  });
+});
+
+// Spec \u00A74.6-2: \u00AB personnes touch\u00E9es \u00BB is defined wherever it appears. The
+// definition belongs to the COMPONENT, not to the page: this table has two
+// homes and only one of them (the Vue d'ensemble, beneath a KPI tile carrying
+// the hint) has a neighbour that defines the term. On /campagnes the table is
+// the entire page.
+describe('CampaignsTable \u2014 \u00AB Personnes \u00BB is defined wherever the table goes', () => {
+  const DEFINITION = /Personnes = comptage unique par jour, par campagne\./;
+
+  it('defines the column in the subtitle when there is no curve', () => {
+    render(<CampaignsTable campaigns={[campaign()]} />);
+    expect(screen.getByText(DEFINITION)).toBeInTheDocument();
+  });
+
+  it('defines it beside the lifetime / period disclosure when there is one', () => {
+    render(
+      <CampaignsTable
+        campaigns={[campaign()]}
+        sparklines={{ 'nike-ete': { values: [4, 9], total: 13, totalLabel: '13', caption: 'x' } }}
+      />,
+    );
+    expect(screen.getByText(DEFINITION)).toBeInTheDocument();
+    // The disclosure that was already there must survive the addition.
+    expect(screen.getByText(/Totaux depuis le d\u00E9but/)).toBeInTheDocument();
+    expect(screen.getByText(/courbe sur la p\u00E9riode s\u00E9lectionn\u00E9e/)).toBeInTheDocument();
+  });
+});
+
+// \u00A74.6-3: the trend column may not make a claim a client cannot check. Its only
+// figure used to be sr-only text, and `Sparkline` auto-scales every row to its
+// own min and max, so 1 \u2192 2 scans drew the same rising line as 400 \u2192 500.
+describe('CampaignsTable \u2014 the trend column shows its number and floors its curve', () => {
+  const sparkline = (total: number, values: number[]) => ({
+    'nike-ete': {
+      values,
+      total,
+      totalLabel: String(total),
+      caption: `${total} scans sur la p\u00E9riode s\u00E9lectionn\u00E9e.`,
+    },
+  });
+
+  it('prints the period total VISIBLY beside the curve', () => {
+    const { container } = render(<CampaignsTable campaigns={[campaign()]} sparklines={sparkline(140, [40, 100])} />);
+
+    const label = screen.getByText('140');
+    expect(label).not.toHaveClass('sr-only');
+    // The curve is the only <svg> this table renders, so its presence is testable.
+    expect(container.querySelector('svg')).not.toBeNull();
+  });
+
+  it('suppresses the curve below the volume floor and says so in VISIBLE text', () => {
+    const under = MIN_SPARKLINE_VOLUME - 1;
+    const { container } = render(
+      <CampaignsTable campaigns={[campaign()]} sparklines={sparkline(under, [3, 2, 4])} />,
+    );
+
+    expect(container.querySelector('svg')).toBeNull();
+    expect(screen.getByText('Pas encore assez de scans')).not.toHaveClass('sr-only');
+    // The figure is never withheld \u2014 only the shape that cannot be trusted.
+    expect(screen.getByText(String(under))).toBeInTheDocument();
+  });
+
+  it('draws the curve exactly AT the floor, not one scan above it', () => {
+    const { container } = render(
+      <CampaignsTable campaigns={[campaign()]} sparklines={sparkline(MIN_SPARKLINE_VOLUME, [4, 6])} />,
+    );
+    expect(container.querySelector('svg')).not.toBeNull();
+    expect(screen.queryByText('Pas encore assez de scans')).not.toBeInTheDocument();
+  });
+
+  it('shows a dash rather than a blank cell when the series is missing entirely', () => {
+    render(<CampaignsTable campaigns={[campaign()]} sparklines={{}} />);
+    expect(screen.getByText('\u2014')).toBeInTheDocument();
+    expect(screen.getByText('Courbe indisponible.')).toBeInTheDocument();
   });
 });

@@ -4,7 +4,7 @@ import { StateBadge } from '@/components/atoms/StateBadge';
 import { Sparkline } from '@/components/charts/Sparkline';
 import { EmptyState } from '@/components/molecules/EmptyState';
 import { formatNumber, formatRate } from '@/lib/analytics/format';
-import type { CampaignSparkline } from '@/lib/analytics/campaignSeries';
+import { MIN_SPARKLINE_VOLUME, type CampaignSparkline } from '@/lib/analytics/campaignSeries';
 import type { CampaignRow } from '@/lib/analytics/types';
 import { CHARTE } from '@/lib/charte';
 
@@ -21,6 +21,19 @@ import { CHARTE } from '@/lib/charte';
  * `sparklines` is optional so the table renders correctly when the stage-3B
  * migration has not been applied yet (see lib/data/campaigns.ts).
  */
+
+/**
+ * Spec §4.6-2: « personnes touchées » is never printed without saying what it
+ * is. The definition lives HERE, not on the pages, because this table now has
+ * two homes and only one of them has a neighbour that defines the term: on / it
+ * sits under a KPI tile carrying the hint, but on /campagnes it is the entire
+ * content of the page and nothing else defines anything. The column is in fact
+ * worse than the KPI's — `campaign.uniques` from `client_campaigns()` is a
+ * lifetime SUM of per-day uniques, so « Personnes 8 400 » may be a few hundred
+ * people who came back. Same sentence as /audience's « Où » card, deliberately
+ * word-for-word so the two cannot drift.
+ */
+const PERSONNES_HINT = 'Personnes = comptage unique par jour, par campagne.';
 export function CampaignsTable({
   campaigns,
   sparklines,
@@ -47,8 +60,8 @@ export function CampaignsTable({
       title={title}
       subtitle={
         showTrend
-          ? 'Totaux depuis le début · courbe sur la période sélectionnée'
-          : 'Totaux depuis le début'
+          ? `Totaux depuis le début · courbe sur la période sélectionnée. ${PERSONNES_HINT}`
+          : `Totaux depuis le début. ${PERSONNES_HINT}`
       }
     >
       <div className="overflow-x-auto">
@@ -97,7 +110,44 @@ export function CampaignsTable({
                         every other column is a lifetime total.
                       */}
                       <span className="sr-only">{spark?.caption ?? 'Courbe indisponible.'}</span>
-                      {spark && <Sparkline values={spark.values} color={CHARTE.jaune} />}
+                      <div className="flex items-center gap-2">
+                        {/*
+                          §4.6-3. Two things this column used to get wrong, both
+                          only visible to a sighted reader:
+
+                          1. Its only figure lived in `sr-only` text. Everything
+                             else in the row is a LIFETIME total, so the period
+                             number had no visible home at all — and a curve
+                             with no number is a shape a client cannot check.
+                          2. `Sparkline` auto-scales each row to its own min and
+                             max, so 1 → 2 and 400 → 500 draw the same rising
+                             line at the same amplitude. Below
+                             MIN_SPARKLINE_VOLUME the shape is noise, and the
+                             portal says so out loud here exactly as
+                             `RankedBars` does with its visible LowDataNote,
+                             rather than relying on a caption nobody sees.
+
+                          The number stays either way: suppressing the curve
+                          withholds an unreliable shape, never a real figure.
+                        */}
+                        {spark && spark.total >= MIN_SPARKLINE_VOLUME ? (
+                          <Sparkline values={spark.values} color={CHARTE.jaune} />
+                        ) : (
+                          <span className="text-xs text-text-muted">
+                            {spark ? 'Pas encore assez de scans' : '—'}
+                          </span>
+                        )}
+                        {/*
+                          aria-hidden because the sr-only caption above already
+                          announces this same number inside a sentence that says
+                          what it counts; announcing it twice is worse than once.
+                        */}
+                        {spark && (
+                          <span aria-hidden="true" className="text-xs tabular-nums text-text-muted">
+                            {spark.totalLabel}
+                          </span>
+                        )}
+                      </div>
                     </td>
                   )}
                 </tr>
