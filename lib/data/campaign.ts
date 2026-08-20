@@ -19,8 +19,6 @@ export interface CampaignDetailData {
   previous: OverviewRow;
   daily: DailyRow[];
   funnel: FunnelRow;
-  /** 'venue' when this campaign carries one, 'city' otherwise. */
-  geoLevel: 'venue' | 'city';
   geo: GeoRow[];
   tech: TechRow[];
   leads: LeadRow[];
@@ -57,6 +55,19 @@ const EMPTY_FUNNEL: FunnelRow = {
 const emptyBucket = (bucket: OverviewRow['bucket']): OverviewRow => ({ bucket, scans: 0, uniques: 0, leads: 0 });
 
 /**
+ * The caller's own campaign, or null.
+ *
+ * Extracted and exported so the rule that produces a 404 is a named, tested
+ * unit rather than an inline `.find()` buried in a loader. Spec §6: a slug the
+ * caller does not own is 404, never « Accès refusé » — so this lookup is what
+ * must run BEFORE any slug reaches an RPC, and the early return below is what
+ * enforces that.
+ */
+export function ownedCampaign(campaigns: CampaignRow[], slug: string): CampaignRow | null {
+  return campaigns.find((c) => c.slug === slug) ?? null;
+}
+
+/**
  * Everything one campaign's page needs.
  *
  * OWNERSHIP IS RESOLVED FIRST, and that ordering is the whole security and UX
@@ -65,6 +76,14 @@ const emptyBucket = (bucket: OverviewRow['bucket']): OverviewRow => ({ bucket, s
  * it to one instead would raise `insufficient_privilege`, which the portal
  * renders as « Accès refusé » — the wrong screen for a stale bookmark, and a
  * screen that also signs the user out.
+ *
+ * What actually guards that ordering today: the early return below, ahead of
+ * the `Promise.all`, plus the end-to-end test in Task 9 that asserts an
+ * unknown slug renders the 404 page and that « Accès refusé » never appears.
+ * `ownedCampaign` itself is unit-tested for its lookup rule (owned / absent /
+ * empty roster / no partial-slug matching) — that proves the RULE is correct,
+ * not that this function calls it before the RPCs fire; nothing here replaces
+ * the Task 9 end-to-end check for the ordering itself.
  */
 export async function fetchCampaign(args: {
   slug: string;
@@ -75,7 +94,7 @@ export async function fetchCampaign(args: {
   const scope = await resolveScope(supabase, undefined);
   if (!scope.ok) return scope;
 
-  const campaign = scope.data.campaigns.find((c) => c.slug === args.slug);
+  const campaign = ownedCampaign(scope.data.campaigns, args.slug);
   if (!campaign) return { ok: false, failure: { kind: 'notFound' } };
 
   // Spec §4.8: `venue` lives on the campaign, so a single campaign's venue
@@ -116,7 +135,6 @@ export async function fetchCampaign(args: {
       previous: buckets.find((b) => b.bucket === 'previous') ?? emptyBucket('previous'),
       daily: (daily.data ?? []) as DailyRow[],
       funnel: ((funnel.data ?? []) as FunnelRow[])[0] ?? EMPTY_FUNNEL,
-      geoLevel,
       geo: (geo.data ?? []) as GeoRow[],
       tech: (tech.data ?? []) as TechRow[],
       // TODO(Task 6): fetchRecentLeads(supabase, campaign.slug)
