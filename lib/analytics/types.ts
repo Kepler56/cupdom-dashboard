@@ -146,3 +146,16 @@ export interface LeadRow {
   phone: string | null;
   first_seen_at: string;
 }
+
+/**
+ * A lead row as the /contacts LIST reads it — `LeadRow` plus the campaign it
+ * belongs to, because that page shows a « Campagne » column and the detail
+ * page's preview does not.
+ *
+ * Extending rather than widening `LeadRow` on purpose: `fetchRecentLeads`
+ * selects six columns and casts its result, so adding a seventh field to the
+ * base type would compile fine and be `undefined` at runtime on that path.
+ */
+export interface LeadListRow extends LeadRow {
+  campaign_slug: string;
+}
