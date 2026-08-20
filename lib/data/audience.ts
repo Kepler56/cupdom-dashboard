@@ -12,6 +12,11 @@ export interface AudienceData {
   campaigns: CampaignRow[];
   slug: string | null;
   level: GeoLevel;
+  /**
+   * Whether to render the « Lieux / événements » card. False both when no
+   * campaign in the selection carries a venue AND when the venue read failed:
+   * a hidden card is honest, an empty one claims nobody scanned there.
+   */
   hasVenue: boolean;
   geo: GeoRow[];
   venue: GeoRow[];
@@ -58,14 +63,41 @@ export async function fetchAudience(args: {
     // entirely when no campaign in the selection carries a venue — the RPC would
     // answer with a single « Inconnu » bar and the card is hidden anyway.
     hasVenue
-      ? supabase.rpc('client_scans_geo', { p_from: from, p_to: to, p_slug: slug, p_level: 'venue' })
+      ? supabase.rpc('client_scans_geo', { p_from: from, p_to: to, p_slug: slug, p_level: levelParam('venue') })
       : Promise.resolve(NO_ROWS),
     supabase.rpc('client_scans_hourly', { p_from: from, p_to: to, p_slug: slug }),
     supabase.rpc('client_scans_tech', { p_from: from, p_to: to, p_slug: slug }),
   ]);
 
-  const failed = [geo, venue, hourly, tech].find((r) => r.error);
+  // THREE reads in this gate, not four. geo, hourly and tech ARE the page: « Où »,
+  // « Quand » and « Comment » are the whole of Audience, and a zero drawn in
+  // place of a failed read is a more expensive lie than an error screen — spec
+  // §6, and the rule the rest of lib/data follows.
+  //
+  // The venue ranking is the exception, for the reason lib/data/campaigns.ts
+  // argues at length about the sparklines: it is one supplementary card beside
+  // three that already answered correctly, and taking the geographic ranking,
+  // the heatmap and the technology breakdown down to admit that ONE card is
+  // missing trades a working page for a scary one. The risk is new to this
+  // branch, too — before it, this RPC only ran when the user picked the venue
+  // tab; now it runs on every load for any venue-carrying client, so a fault in
+  // it reaches everybody rather than the few who clicked.
+  //
+  // Degrading means HIDING the card, not drawing it empty: an empty ranking
+  // beside « Lieux / événements » reads as « nobody scanned at the Rex Club »,
+  // which is the false zero the failure gate exists to prevent. And it warns to
+  // the server log, because silence here would hide a broken read for as long
+  // as nobody looked at the card.
+  const failed = [geo, hourly, tech].find((r) => r.error);
   if (failed) return { ok: false, failure: classifyPostgrestError(failed.error) };
+
+  if (venue.error) {
+    console.warn(
+      '[portail] client_scans_geo(venue) indisponible, carte Lieux masquée:',
+      venue.error.code,
+      venue.error.message,
+    );
+  }
 
   return {
     ok: true,
@@ -73,9 +105,9 @@ export async function fetchAudience(args: {
       campaigns,
       slug,
       level,
-      hasVenue,
+      hasVenue: hasVenue && !venue.error,
       geo: (geo.data ?? []) as GeoRow[],
-      venue: (venue.data ?? []) as GeoRow[],
+      venue: venue.error ? [] : ((venue.data ?? []) as GeoRow[]),
       hourly: (hourly.data ?? []) as HourlyRow[],
       tech: (tech.data ?? []) as TechRow[],
     },
