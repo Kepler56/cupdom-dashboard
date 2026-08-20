@@ -122,3 +122,27 @@ export interface CampaignDailyRow {
   day: string;
   scans: number;
 }
+
+/**
+ * A row of `public.leads`, read DIRECTLY under RLS — not through an RPC.
+ *
+ * The `leads read client` policy from migration 0009 restricts this to
+ * `campaign_slug in (select public.client_slugs())`, so a client physically
+ * cannot read another sponsor's contacts. This is the one client-visible table
+ * that carries personal data, and spec §4.4 records the lawful basis: the
+ * consent text every lead accepted names the sponsor explicitly.
+ *
+ * All four PII columns are NULLABLE and are nulled in place by
+ * `run_lead_anonymisation()` (migration 0008) once the retention window closes,
+ * or immediately by `erase_lead()` on request. The ROW survives, so the counts
+ * stay honest — which means the UI must render a PII-less lead as a real,
+ * explained row and not as a blank one.
+ */
+export interface LeadRow {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+  phone: string | null;
+  first_seen_at: string;
+}
