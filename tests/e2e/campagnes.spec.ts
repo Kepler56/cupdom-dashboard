@@ -74,6 +74,17 @@ test('l’audience montre les lieux au-dessus de la géographie', async ({ page 
   await expect(page.getByRole('heading', { name: 'Lieux / événements' })).toBeVisible();
   await expect(page.getByText('Rex Club', { exact: true })).toBeVisible();
 
+  // Task 8 removed « Lieux » from this picker and gave venues their own card
+  // above. Asserting the COUNT is the point: a regression that puts venue back
+  // as a fourth tab would still pass a heading-only assertion, and would silently
+  // restore the mutually-exclusive behaviour spec §4.3-B rejects.
+  const picker = page.getByRole('navigation', { name: 'Niveau géographique' });
+  await expect(picker.getByRole('link')).toHaveCount(3);
+  await expect(picker.getByRole('link', { name: 'Pays', exact: true })).toBeVisible();
+  await expect(picker.getByRole('link', { name: 'Régions', exact: true })).toBeVisible();
+  await expect(picker.getByRole('link', { name: 'Villes', exact: true })).toBeVisible();
+  await expect(picker.getByRole('link', { name: 'Lieux', exact: true })).toHaveCount(0);
+
   // ?geo=venue was a valid URL in stage 3A. It must degrade, not break.
   await page.goto('/audience?geo=venue');
   await expect(page.getByRole('heading', { name: 'Où' })).toBeVisible();
