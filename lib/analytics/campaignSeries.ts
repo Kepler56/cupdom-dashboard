@@ -57,21 +57,48 @@ export interface CampaignSparkline {
 
 const NO_DATA = 'Pas encore de scans sur la période sélectionnée.';
 
+/**
+ * Below this many scans over the whole window, the curve is suppressed and the
+ * column says « pas encore assez » instead.
+ *
+ * Same reasoning and same number as `MIN_TREND_VOLUME` in ./kpis: `Sparkline`
+ * auto-scales every row to its OWN min and max, so 1 → 2 scans and 400 → 500
+ * draw the identical rising line at the identical amplitude. At single-digit
+ * volumes that line is noise rendered as a claim, and a sponsor reads « ça
+ * décolle » off two scans. The rest of the portal already refuses to do this:
+ * `trendNote` withholds a percentage below `MIN_TREND_VOLUME`, and every
+ * `RankedBars` prints a visible `LowDataNote` below `MIN_RANKING_VOLUME`.
+ *
+ * The period total is printed either way, so suppressing the curve hides no
+ * figure — only the shape that cannot be trusted.
+ */
+export const MIN_SPARKLINE_VOLUME = 10;
+
 export function toSparklines(series: Record<string, number[]>): Record<string, CampaignSparkline> {
   const out: Record<string, CampaignSparkline> = {};
 
   for (const [slug, values] of Object.entries(series)) {
     const total = values.reduce((sum, v) => sum + v, 0);
     const totalLabel = formatNumber(total);
+
+    // THREE states, not two. Branching on `values.length < 2` alone conflated
+    // "the window is one day long" with "there were no scans", and the second
+    // wording is a lie over the first: under « Tout » the window opens at the
+    // client's earliest data day, so on launch day the series is a single real
+    // number and the caption announced « Pas encore de scans » over it.
+    //
     // Fewer than two points is what `Sparkline` itself refuses to draw — one
-    // point is not a line, and a lone dot reads as a bug rather than as "not
-    // enough data yet". The caption says which of the two it is.
-    out[slug] = {
-      values,
-      total,
-      totalLabel,
-      caption: values.length < 2 ? NO_DATA : `${totalLabel} scans sur la période sélectionnée.`,
-    };
+    // point is not a line, and a lone dot reads as a bug. That is a statement
+    // about the CURVE, never about the number, so the caption keeps the number
+    // and explains the missing curve.
+    const caption =
+      total === 0
+        ? NO_DATA
+        : values.length < 2
+          ? `${totalLabel} scans sur la période sélectionnée (un seul jour — pas assez pour tracer une courbe).`
+          : `${totalLabel} scans sur la période sélectionnée.`;
+
+    out[slug] = { values, total, totalLabel, caption };
   }
 
   return out;

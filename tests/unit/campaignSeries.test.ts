@@ -69,16 +69,32 @@ describe('toSparklines', () => {
     expect(out.rex.caption).toBe(`${out.rex.totalLabel} scans sur la période sélectionnée.`);
   });
 
-  it('says so rather than captioning a curve that will not be drawn', () => {
+  it('says « pas encore de scans » only when the total really is zero', () => {
     expect(toSparklines({ rex: [] }).rex.caption).toBe('Pas encore de scans sur la période sélectionnée.');
-    expect(toSparklines({ rex: [7] }).rex.caption).toBe('Pas encore de scans sur la période sélectionnée.');
+    // A full window of zeros is the other way to have nothing: the curve is
+    // drawable (it is a flat line) but there is nothing to count.
+    const flat = toSparklines({ rex: [0, 0, 0] }).rex;
+    expect(flat.total).toBe(0);
+    expect(flat.caption).toBe('Pas encore de scans sur la période sélectionnée.');
   });
 
   it('does not call a period with scans empty just because it is one day long', () => {
-    // One day IS the whole window under ?p=7j on launch day. Sparkline renders
-    // nothing (a lone dot reads as a bug), but the caption must still carry the
-    // number, because that number is real.
+    // One day IS the whole window under ?p=7j on launch day, and under « Tout »
+    // too — seriesWindow opens at the client's earliest data day. Sparkline
+    // renders nothing (a lone dot reads as a bug), but the caption must still
+    // carry the number, because that number is real. Announcing « Pas encore de
+    // scans » over 42 real scans is the defect this asserts against.
     const out = toSparklines({ rex: [42] });
     expect(out.rex.total).toBe(42);
+    expect(out.rex.caption).toBe(
+      '42 scans sur la période sélectionnée (un seul jour — pas assez pour tracer une courbe).',
+    );
+    expect(out.rex.caption).not.toContain('Pas encore de scans');
+  });
+
+  it('explains the absent curve for a one-day window without hiding the figure', () => {
+    const out = toSparklines({ rex: [7] });
+    expect(out.rex.caption).toContain('7 scans sur la période sélectionnée');
+    expect(out.rex.caption).toContain('un seul jour');
   });
 });
