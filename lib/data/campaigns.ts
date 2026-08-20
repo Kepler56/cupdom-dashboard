@@ -1,6 +1,6 @@
 import { groupCampaignSeries, toSparklines, type CampaignSparkline } from '@/lib/analytics/campaignSeries';
 import type { CampaignDailyRow, CampaignRow } from '@/lib/analytics/types';
-import type { PeriodRange } from '@/lib/period';
+import type { PeriodPreset, PeriodRange } from '@/lib/period';
 import { createServerClient, type SupabaseServerClient } from '@/lib/supabase/server';
 import type { DataResult } from './result';
 import { resolveScope } from './scope';
@@ -36,6 +36,7 @@ export interface CampaignsData {
 export async function loadSparklines(
   supabase: SupabaseServerClient,
   range: PeriodRange,
+  preset: PeriodPreset,
   slugs: string[],
 ): Promise<Record<string, CampaignSparkline>> {
   if (slugs.length === 0) return {};
@@ -54,9 +55,17 @@ export async function loadSparklines(
     groupCampaignSeries({
       rows: (data ?? []) as CampaignDailyRow[],
       slugs,
-      // The epoch is what resolvePeriod('tout') hands back; seriesWindow reads
-      // null as "start where the data starts" and caps the rest.
-      from: range.hasPrevious ? range.from : null,
+      // Tested against the PRESET, never against `range.hasPrevious`. The epoch
+      // is what resolvePeriod('tout') hands back and seriesWindow reads null as
+      // "start where the data starts", so the two happen to coincide today —
+      // but only because 'tout' is the one preset without a prior window, which
+      // is a property of the trend comparison and not of the series. A future
+      // preset with the same property (« depuis le lancement », say) would
+      // silently truncate every curve to its own window with no error anywhere.
+      // app/(portal)/page.tsx already refuses that proxy, in those words, for
+      // its own fillDailySeries call; this is the same decision made the same
+      // way rather than two adjacent files disagreeing.
+      from: preset === 'tout' ? null : range.from,
       to: range.to,
     }),
   );
@@ -70,20 +79,49 @@ export async function loadSparklines(
  * turns the page into a worse version of the detail page. The TopBar hides the
  * filter here for the same reason.
  */
-export async function fetchCampaigns(args: { range: PeriodRange }): Promise<DataResult<CampaignsData>> {
+export async function fetchCampaigns(args: {
+  range: PeriodRange;
+  preset: PeriodPreset;
+}): Promise<DataResult<CampaignsData>> {
   const supabase = await createServerClient();
 
   const scope = await resolveScope(supabase, undefined);
   if (!scope.ok) return scope;
-  const { campaigns } = scope.data;
+
+  const campaigns = byNewestFirst(scope.data.campaigns);
 
   return {
     ok: true,
     data: {
       campaigns,
-      sparklines: await loadSparklines(supabase, args.range, campaigns.map((c) => c.slug)),
+      sparklines: await loadSparklines(supabase, args.range, args.preset, campaigns.map((c) => c.slug)),
     },
   };
+}
+
+/**
+ * « Les plus récentes d'abord », enforced here rather than assumed.
+ *
+ * The /campagnes page states that ordering on screen. `client_campaigns()`
+ * makes no such promise — it lives in the `cupdom` repository, which deploys
+ * independently, so an ORDER BY added or dropped there would turn a sentence in
+ * this product into a falsehood with nothing failing. Sorting on the row we
+ * already have costs nothing and makes the claim true whatever the other side
+ * returns.
+ *
+ * Copied, not sorted in place: `scope.data.campaigns` is the same array the
+ * caller may hold, and a data loader that reorders its input is a surprise
+ * waiting for the next reader.
+ *
+ * An unparseable created_at sorts LAST rather than throwing the comparator into
+ * NaN, where the result depends on the engine's sort and the input order.
+ */
+function byNewestFirst(campaigns: CampaignRow[]): CampaignRow[] {
+  const at = (row: CampaignRow) => {
+    const time = Date.parse(row.created_at);
+    return Number.isNaN(time) ? Number.NEGATIVE_INFINITY : time;
+  };
+  return [...campaigns].sort((a, b) => at(b) - at(a));
 }
 
 // classifyPostgrestError is deliberately not imported here; resolveScope

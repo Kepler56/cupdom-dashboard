@@ -25,7 +25,7 @@ export default async function DashboardPage({
   const params = await searchParams;
   const period = parsePeriod(params.p);
   const range = resolvePeriod(period, new Date());
-  const result = await fetchOverview({ range, rawSlug: params.c });
+  const result = await fetchOverview({ range, preset: period, rawSlug: params.c });
   const company = account?.displayName ?? 'Votre compte';
 
   // Spec §6: a failed read is never rendered as zeros. "You have no access" and

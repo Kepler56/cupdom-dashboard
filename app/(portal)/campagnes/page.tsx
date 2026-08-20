@@ -2,6 +2,7 @@ import { AccessDenied } from '@/components/molecules/AccessDenied';
 import { ErrorState } from '@/components/molecules/ErrorState';
 import { CampaignsTable } from '@/components/organisms/CampaignsTable';
 import { TopBar } from '@/components/organisms/TopBar';
+import { formatNumber } from '@/lib/analytics/format';
 import { fetchCampaigns } from '@/lib/data/campaigns';
 import { parsePeriod, resolvePeriod } from '@/lib/period';
 import { getClientAccount } from '@/lib/session';
@@ -15,7 +16,7 @@ export default async function CampagnesPage({
   const params = await searchParams;
   const period = parsePeriod(params.p);
   const range = resolvePeriod(period, new Date());
-  const result = await fetchCampaigns({ range });
+  const result = await fetchCampaigns({ range, preset: period });
   const company = account?.displayName ?? 'Votre compte';
 
   if (!result.ok) {
@@ -42,7 +43,7 @@ export default async function CampagnesPage({
           <p className="mt-1 text-sm text-text-muted">
             {campaigns.length === 0
               ? 'Les robots sont exclus de tous les chiffres.'
-              : `${active} active${active > 1 ? 's' : ''} sur ${campaigns.length}. Les plus récentes d’abord. Les robots sont exclus de tous les chiffres.`}
+              : `${formatNumber(active)} active${active > 1 ? 's' : ''} sur ${formatNumber(campaigns.length)}. Les plus récentes d’abord. Les robots sont exclus de tous les chiffres.`}
           </p>
         </div>
 

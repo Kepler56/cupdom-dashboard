@@ -1,6 +1,6 @@
 import type { CampaignSparkline } from '@/lib/analytics/campaignSeries';
 import type { CampaignRow, DailyRow, FunnelRow, OverviewRow } from '@/lib/analytics/types';
-import type { PeriodRange } from '@/lib/period';
+import type { PeriodPreset, PeriodRange } from '@/lib/period';
 import { createServerClient } from '@/lib/supabase/server';
 import { loadSparklines } from './campaigns';
 import { classifyPostgrestError, type DataResult } from './result';
@@ -36,6 +36,7 @@ const emptyBucket = (bucket: OverviewRow['bucket']): OverviewRow => ({ bucket, s
  */
 export async function fetchOverview(args: {
   range: PeriodRange;
+  preset: PeriodPreset;
   rawSlug: string | undefined;
 }): Promise<DataResult<OverviewData>> {
   const supabase = await createServerClient();
@@ -78,7 +79,7 @@ export async function fetchOverview(args: {
       // Sequential, after the three parallel reads rather than inside them:
       // this one cannot fail the page, so it must not be able to land in the
       // `[overview, daily, funnel].find(r => r.error)` check above.
-      sparklines: await loadSparklines(supabase, args.range, campaigns.map((c) => c.slug)),
+      sparklines: await loadSparklines(supabase, args.range, args.preset, campaigns.map((c) => c.slug)),
     },
   };
 }
