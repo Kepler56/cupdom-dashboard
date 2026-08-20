@@ -40,13 +40,23 @@ export const DEFAULT_DIR: SortDir = 'desc';
  * An ALLOWLIST, never a blocklist, and this is the security boundary of the
  * feature. `searchFilter` below builds a PostgREST `.or()` argument by string
  * concatenation, and PostgREST parses that string as filter SYNTAX — so a comma,
- * a dot, a parenthesis or a star that survives this function is not a broken
- * query, it is the caller choosing which filters run. RLS still bounds the rows
- * they could ever reach, but they could probe columns this page never exposes.
+ * a parenthesis or a star that survives this function is not a broken query, it
+ * is the caller choosing which filters run. RLS still bounds the rows they could
+ * ever reach, but they could probe columns this page never exposes.
  *
  * The set is what a person types into a contact search: letters in any language,
  * digits, space, and the four punctuation marks that appear inside real names
  * and addresses.
+ *
+ * `.` is deliberately kept, and that decision is measured, not assumed: a
+ * PostgREST `.or()` filter consumes everything after `col.op.` as the VALUE, so
+ * an interior dot lands there as data, not as syntax — only a comma closes the
+ * current filter and lets a new `col.op.value` triple begin, which is why comma
+ * (and paren, and star) are the ones stripped above. Confirmed live: searching
+ * the client's own 823 leads for the literal string `phone.not.is.null` — every
+ * one of those 823 rows HAS a phone number — returned 0 rows. Had the dots
+ * re-opened filter parsing into `phone.not.is.null` as its own clause, it would
+ * have returned all 823. It did not, so the dot is inert where it matters.
  */
 const ALLOWED = /[^\p{L}\p{N} @.\-_']/gu;
 

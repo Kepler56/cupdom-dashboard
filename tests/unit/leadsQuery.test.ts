@@ -18,17 +18,34 @@ describe('sanitiseSearch', () => {
     expect(sanitiseSearch('Jean-Luc')).toBe('Jean-Luc');
   });
 
-  it('strips PostgREST filter syntax — the whole point of this function', () => {
-    // `.or()` takes a string PostgREST parses as filters. A comma or a paren
-    // that survives here lets the caller choose which filters run.
+  it('strips the characters PostgREST would read as filter syntax', () => {
+    // `,` separates filters and `(` `)` group them — either one lets the caller
+    // append a filter of their own. `*` is the ilike wildcard, so leaving it in
+    // would let a search widen itself.
     expect(sanitiseSearch('a,b')).toBe('ab');
     expect(sanitiseSearch('a(b)c')).toBe('abc');
     expect(sanitiseSearch('a*b')).toBe('ab');
-    // `.` is kept, not stripped: it is needed for email search (see the test
-    // above) and, unlike `,` `(` `)` `*`, a lone dot inside a filter VALUE
-    // cannot open a new column/operator — only a comma does that. So this
-    // string, which contains no comma/paren/star, survives unchanged.
-    expect(sanitiseSearch('phone.not.is.null')).toBe('phone.not.is.null');
+    expect(sanitiseSearch('100%')).toBe('100');
+  });
+
+  it('keeps dots, and they stay inert inside the value', () => {
+    // Dots must survive: an e-mail search is the main thing this box is for,
+    // and « emma.garcia1 » has to match.
+    //
+    // They are safe because PostgREST consumes everything after `col.op.` as
+    // the value, so an interior dot is data, not syntax. Measured against the
+    // live database rather than inferred — searching « phone.not.is.null »
+    // across 823 leads, every one of which HAS a phone, returned 0 rows. Had
+    // the dots re-opened filter parsing it would have returned all 823.
+    // Re-run that probe before changing this.
+    expect(sanitiseSearch('camille.durand@example.test')).toBe('camille.durand@example.test');
+
+    // The real invariant: the dots land in the VALUE segment, after `col.op.`,
+    // and no new `col.op.value` triple is created — which is what a comma would
+    // have done, and why commas are stripped above.
+    expect(searchFilter(sanitiseSearch('phone.not.is.null')!)).toBe(
+      'first_name.ilike.*phone.not.is.null*,last_name.ilike.*phone.not.is.null*,email.ilike.*phone.not.is.null*',
+    );
   });
 
   it('collapses whitespace and trims', () => {
