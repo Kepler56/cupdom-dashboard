@@ -133,7 +133,7 @@ export default async function DashboardPage({
           <div data-testid="funnel" className="contents">
             <FunnelBars funnel={parcours} />
           </div>
-          <CampaignsTable campaigns={scope} sparklines={scopedSparklines} />
+          <CampaignsTable campaigns={scope} period={period} sparklines={scopedSparklines} />
         </div>
       </main>
     </>

@@ -46,7 +46,7 @@ export default async function CampagnesPage({
           </p>
         </div>
 
-        <CampaignsTable campaigns={campaigns} sparklines={sparklines} title="Toutes vos campagnes" />
+        <CampaignsTable campaigns={campaigns} period={period} sparklines={sparklines} title="Toutes vos campagnes" />
       </main>
     </>
   );

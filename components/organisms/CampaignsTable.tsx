@@ -7,6 +7,7 @@ import { formatNumber, formatRate } from '@/lib/analytics/format';
 import { MIN_SPARKLINE_VOLUME, type CampaignSparkline } from '@/lib/analytics/campaignSeries';
 import type { CampaignRow } from '@/lib/analytics/types';
 import { CHARTE } from '@/lib/charte';
+import type { PeriodPreset } from '@/lib/period';
 
 /**
  * The campaigns rollup table, on both the Vue d'ensemble and /campagnes.
@@ -36,10 +37,21 @@ import { CHARTE } from '@/lib/charte';
 const PERSONNES_HINT = 'Personnes = comptage unique par jour, par campagne.';
 export function CampaignsTable({
   campaigns,
+  period,
   sparklines,
   title = 'Vos campagnes',
 }: {
   campaigns: CampaignRow[];
+  /**
+   * The active period preset, carried into every drill-down link.
+   *
+   * Required rather than defaulted: a missing period does not fail, it silently
+   * sends a sponsor reading ?p=90j to the detail page's default 30 j, where
+   * every KPI changes under them and nothing on screen says why. A default here
+   * would make the next call site do that quietly; a required prop makes it a
+   * compile error.
+   */
+  period: PeriodPreset;
   sparklines?: Record<string, CampaignSparkline>;
   title?: string;
 }) {
@@ -84,7 +96,10 @@ export function CampaignsTable({
               return (
                 <tr key={campaign.slug} className="border-b border-border/60 last:border-0">
                   <td className="py-3 pr-3 font-medium text-ink">
-                    <Link href={`/campagnes/${campaign.slug}`} className="underline-offset-2 hover:underline">
+                    <Link
+                      href={`/campagnes/${campaign.slug}?p=${period}`}
+                      className="underline-offset-2 hover:underline"
+                    >
                       {campaign.name}
                     </Link>
                   </td>

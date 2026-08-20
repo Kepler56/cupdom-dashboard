@@ -58,6 +58,19 @@ test('un slug inconnu montre « Campagne introuvable », jamais « Accès refus�
   await expect(page.getByRole('link', { name: 'Voir toutes vos campagnes' })).toBeVisible();
 });
 
+test('la période survit à l’aller-retour liste → détail → liste', async ({ page }) => {
+  // The drill-down used to drop `?p=`, so a sponsor reading 90 days landed on
+  // the detail page's default 30 and every KPI changed under them. Both
+  // directions are asserted: the back link dropped it too.
+  await page.goto('/campagnes?p=90j');
+
+  await page.getByRole('link', { name: 'Rex Club — Été' }).click();
+  await expect(page).toHaveURL(/\/campagnes\/demo-rex-club\?p=90j/);
+
+  await page.getByRole('link', { name: 'Toutes vos campagnes' }).click();
+  await expect(page).toHaveURL(/\/campagnes\?p=90j/);
+});
+
 test('la période change les chiffres du détail', async ({ page }) => {
   await page.goto('/campagnes/demo-rex-club?p=7j');
   const sevenDays = await page.getByTestId('kpi-grid').textContent();

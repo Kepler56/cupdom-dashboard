@@ -80,8 +80,15 @@ export default async function CampagnePage({
       <TopBar company={company} period={period} campaigns={[]} campaign={null} showCampaignFilter={false} />
 
       <main className="flex flex-1 flex-col gap-6 p-6">
+        {/*
+          `?p=` and not a bare /campagnes: the period pills are the sponsor's
+          window, and a back link that drops them silently returns them to the
+          default 30 j with every figure changed and nothing on screen saying
+          why. The link INTO this page carries the period for the same reason
+          (see CampaignsTable), so the round trip preserves it.
+        */}
         <Link
-          href="/campagnes"
+          href={`/campagnes?p=${period}`}
           className="inline-flex w-fit items-center gap-1.5 text-sm text-text-muted hover:text-text"
         >
           <ArrowLeft size={15} aria-hidden="true" />

@@ -23,12 +23,12 @@ const campaign = (over: Partial<CampaignRow> = {}): CampaignRow => ({
 
 describe('CampaignsTable', () => {
   it('renders one row per campaign', () => {
-    render(<CampaignsTable campaigns={[campaign(), campaign({ slug: 'nike-hiver', name: 'Nike hiver' })]} />);
+    render(<CampaignsTable period="30j" campaigns={[campaign(), campaign({ slug: 'nike-hiver', name: 'Nike hiver' })]} />);
     expect(screen.getAllByRole('row')).toHaveLength(3); // header + 2
   });
 
   it('formats the figures in fr-FR', () => {
-    render(<CampaignsTable campaigns={[campaign()]} />);
+    render(<CampaignsTable period="30j" campaigns={[campaign()]} />);
     // `collapseWhitespace: false` is load-bearing, not decoration. Testing
     // Library's default normalizer collapses whitespace in the DOM TEXT but
     // never in the SEARCH STRING, and JS `\s` includes U+202F and U+00A0 - so
@@ -40,31 +40,45 @@ describe('CampaignsTable', () => {
   });
 
   it('labels an inactive campaign', () => {
-    render(<CampaignsTable campaigns={[campaign({ active: false })]} />);
+    render(<CampaignsTable period="30j" campaigns={[campaign({ active: false })]} />);
     expect(screen.getByText('Inactive')).toBeInTheDocument();
   });
 
   it('shows an empty state rather than an empty table', () => {
-    render(<CampaignsTable campaigns={[]} />);
+    render(<CampaignsTable period="30j" campaigns={[]} />);
     expect(screen.getByText(/aucune campagne/i)).toBeInTheDocument();
     expect(screen.queryByRole('table')).toBeNull();
   });
 });
 
 describe('CampaignsTable \u2014 stage 3B additions', () => {
-  it('links each campaign to its detail page', () => {
-    render(<CampaignsTable campaigns={[campaign()]} />);
-    expect(screen.getByRole('link', { name: 'Nike \u00E9t\u00E9' })).toHaveAttribute('href', '/campagnes/nike-ete');
+  it('links each campaign to its detail page, carrying the active period', () => {
+    render(<CampaignsTable period="30j" campaigns={[campaign()]} />);
+    expect(screen.getByRole('link', { name: 'Nike \u00E9t\u00E9' })).toHaveAttribute('href', '/campagnes/nike-ete?p=30j');
+  });
+
+  it('does not silently reset the period on the way to the detail page', () => {
+    // A sponsor reading ?p=90j who clicks a campaign used to land on the
+    // detail page's default 30 j, with every KPI changed under them and
+    // nothing on screen saying why.
+    render(<CampaignsTable period="90j" campaigns={[campaign()]} />);
+    expect(screen.getByRole('link', { name: 'Nike \u00E9t\u00E9' })).toHaveAttribute('href', '/campagnes/nike-ete?p=90j');
+  });
+
+  it('carries \u00AB tout \u00BB too, which is the preset most easily lost', () => {
+    render(<CampaignsTable period="tout" campaigns={[campaign()]} />);
+    expect(screen.getByRole('link', { name: 'Nike \u00E9t\u00E9' })).toHaveAttribute('href', '/campagnes/nike-ete?p=tout');
   });
 
   it('renders no sparkline column when no series were supplied', () => {
-    render(<CampaignsTable campaigns={[campaign()]} />);
+    render(<CampaignsTable period="30j" campaigns={[campaign()]} />);
     expect(screen.queryByRole('columnheader', { name: 'Tendance' })).not.toBeInTheDocument();
   });
 
   it('carries the period total in text, because every other column is lifetime', () => {
     render(
       <CampaignsTable
+        period="30j"
         campaigns={[campaign()]}
         sparklines={{ 'nike-ete': { values: [1, 2, 3], total: 6, totalLabel: '6', caption: '6 scans sur la p\u00E9riode s\u00E9lectionn\u00E9e.' } }}
       />,
@@ -76,6 +90,7 @@ describe('CampaignsTable \u2014 stage 3B additions', () => {
   it('says the two bases apart in the subtitle', () => {
     render(
       <CampaignsTable
+        period="30j"
         campaigns={[campaign()]}
         sparklines={{ 'nike-ete': { values: [], total: 0, totalLabel: '0', caption: 'x' } }}
       />,
@@ -89,21 +104,21 @@ describe('CampaignsTable \u2014 stage 3B additions', () => {
   });
 
   it('keeps the lifetime-only subtitle when there is no curve to explain', () => {
-    render(<CampaignsTable campaigns={[campaign()]} />);
+    render(<CampaignsTable period="30j" campaigns={[campaign()]} />);
     expect(
       screen.getByText('Totaux depuis le d\u00E9but. Personnes = comptage unique par jour, par campagne.'),
     ).toBeInTheDocument();
   });
 
   it('accepts a title, so the page that is ABOUT campaigns does not say \u00AB Vos campagnes \u00BB twice', () => {
-    render(<CampaignsTable campaigns={[campaign()]} title="Toutes vos campagnes" />);
+    render(<CampaignsTable period="30j" campaigns={[campaign()]} title="Toutes vos campagnes" />);
     expect(screen.getByRole('heading', { name: 'Toutes vos campagnes' })).toBeInTheDocument();
   });
 
   it('still renders a campaign whose series is missing entirely', () => {
     // Defence in depth: Task 3 degrades the sparkline RPC to {} when the
     // migration has not been applied, so every lookup misses.
-    render(<CampaignsTable campaigns={[campaign()]} sparklines={{}} />);
+    render(<CampaignsTable period="30j" campaigns={[campaign()]} sparklines={{}} />);
     expect(screen.getByText('Nike \u00E9t\u00E9')).toBeInTheDocument();
   });
 });
@@ -117,13 +132,14 @@ describe('CampaignsTable \u2014 \u00AB Personnes \u00BB is defined wherever the 
   const DEFINITION = /Personnes = comptage unique par jour, par campagne\./;
 
   it('defines the column in the subtitle when there is no curve', () => {
-    render(<CampaignsTable campaigns={[campaign()]} />);
+    render(<CampaignsTable period="30j" campaigns={[campaign()]} />);
     expect(screen.getByText(DEFINITION)).toBeInTheDocument();
   });
 
   it('defines it beside the lifetime / period disclosure when there is one', () => {
     render(
       <CampaignsTable
+        period="30j"
         campaigns={[campaign()]}
         sparklines={{ 'nike-ete': { values: [4, 9], total: 13, totalLabel: '13', caption: 'x' } }}
       />,
@@ -149,7 +165,7 @@ describe('CampaignsTable \u2014 the trend column shows its number and floors its
   });
 
   it('prints the period total VISIBLY beside the curve', () => {
-    const { container } = render(<CampaignsTable campaigns={[campaign()]} sparklines={sparkline(140, [40, 100])} />);
+    const { container } = render(<CampaignsTable period="30j" campaigns={[campaign()]} sparklines={sparkline(140, [40, 100])} />);
 
     const label = screen.getByText('140');
     expect(label).not.toHaveClass('sr-only');
@@ -160,7 +176,7 @@ describe('CampaignsTable \u2014 the trend column shows its number and floors its
   it('suppresses the curve below the volume floor and says so in VISIBLE text', () => {
     const under = MIN_SPARKLINE_VOLUME - 1;
     const { container } = render(
-      <CampaignsTable campaigns={[campaign()]} sparklines={sparkline(under, [3, 2, 4])} />,
+      <CampaignsTable period="30j" campaigns={[campaign()]} sparklines={sparkline(under, [3, 2, 4])} />,
     );
 
     expect(container.querySelector('svg')).toBeNull();
@@ -171,14 +187,14 @@ describe('CampaignsTable \u2014 the trend column shows its number and floors its
 
   it('draws the curve exactly AT the floor, not one scan above it', () => {
     const { container } = render(
-      <CampaignsTable campaigns={[campaign()]} sparklines={sparkline(MIN_SPARKLINE_VOLUME, [4, 6])} />,
+      <CampaignsTable period="30j" campaigns={[campaign()]} sparklines={sparkline(MIN_SPARKLINE_VOLUME, [4, 6])} />,
     );
     expect(container.querySelector('svg')).not.toBeNull();
     expect(screen.queryByText('Pas encore assez de scans')).not.toBeInTheDocument();
   });
 
   it('shows a dash rather than a blank cell when the series is missing entirely', () => {
-    render(<CampaignsTable campaigns={[campaign()]} sparklines={{}} />);
+    render(<CampaignsTable period="30j" campaigns={[campaign()]} sparklines={{}} />);
     expect(screen.getByText('\u2014')).toBeInTheDocument();
     expect(screen.getByText('Courbe indisponible.')).toBeInTheDocument();
   });
