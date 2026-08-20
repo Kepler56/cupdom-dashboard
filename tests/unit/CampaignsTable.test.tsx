@@ -49,3 +49,55 @@ describe('CampaignsTable', () => {
     expect(screen.queryByRole('table')).toBeNull();
   });
 });
+
+describe('CampaignsTable \u2014 stage 3B additions', () => {
+  it('links each campaign to its detail page', () => {
+    render(<CampaignsTable campaigns={[campaign()]} />);
+    expect(screen.getByRole('link', { name: 'Nike \u00E9t\u00E9' })).toHaveAttribute('href', '/campagnes/nike-ete');
+  });
+
+  it('renders no sparkline column when no series were supplied', () => {
+    render(<CampaignsTable campaigns={[campaign()]} />);
+    expect(screen.queryByRole('columnheader', { name: 'Tendance' })).not.toBeInTheDocument();
+  });
+
+  it('carries the period total in text, because every other column is lifetime', () => {
+    render(
+      <CampaignsTable
+        campaigns={[campaign()]}
+        sparklines={{ 'nike-ete': { values: [1, 2, 3], total: 6, totalLabel: '6', caption: '6 scans sur la p\u00E9riode s\u00E9lectionn\u00E9e.' } }}
+      />,
+    );
+    expect(screen.getByRole('columnheader', { name: 'Tendance' })).toBeInTheDocument();
+    expect(screen.getByText('6 scans sur la p\u00E9riode s\u00E9lectionn\u00E9e.')).toBeInTheDocument();
+  });
+
+  it('says the two bases apart in the subtitle', () => {
+    render(
+      <CampaignsTable
+        campaigns={[campaign()]}
+        sparklines={{ 'nike-ete': { values: [], total: 0, totalLabel: '0', caption: 'x' } }}
+      />,
+    );
+    expect(
+      screen.getByText('Totaux depuis le d\u00E9but \u00B7 courbe sur la p\u00E9riode s\u00E9lectionn\u00E9e', { collapseWhitespace: false }),
+    ).toBeInTheDocument();
+  });
+
+  it('keeps the lifetime-only subtitle when there is no curve to explain', () => {
+    render(<CampaignsTable campaigns={[campaign()]} />);
+    expect(screen.getByText('Totaux depuis le d\u00E9but')).toBeInTheDocument();
+  });
+
+  it('accepts a title, so the page that is ABOUT campaigns does not say \u00AB Vos campagnes \u00BB twice', () => {
+    render(<CampaignsTable campaigns={[campaign()]} title="Toutes vos campagnes" />);
+    expect(screen.getByRole('heading', { name: 'Toutes vos campagnes' })).toBeInTheDocument();
+  });
+
+  it('still renders a campaign whose series is missing entirely', () => {
+    // Defence in depth: Task 3 degrades the sparkline RPC to {} when the
+    // migration has not been applied, so every lookup misses.
+    render(<CampaignsTable campaigns={[campaign()]} sparklines={{}} />);
+    expect(screen.getByText('Nike \u00E9t\u00E9')).toBeInTheDocument();
+  });
+});
