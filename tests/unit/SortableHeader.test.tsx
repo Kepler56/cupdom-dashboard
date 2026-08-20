@@ -8,9 +8,24 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams('c=demo-rex-club&page=7&tri=date.desc'),
 }));
 
+// A real <table><thead><tr> wrapper, not a bare <div>: `<th>` is only valid
+// HTML inside a row inside a table, and `aria-sort`'s semantics are defined
+// for a columnheader inside that structure. Rendering the header standalone
+// would both print a hydration-mismatch warning and prove the attribute is
+// merely PRESENT rather than that it means what a screen reader would hear.
+function renderHeader(ui: React.ReactElement) {
+  return render(
+    <table>
+      <thead>
+        <tr>{ui}</tr>
+      </thead>
+    </table>,
+  );
+}
+
 describe('SortableHeader', () => {
   it('sorts a new column ascending on first click', () => {
-    render(<SortableHeader label="Nom" sort="nom" query={parseLeadsQuery({ tri: 'date.desc' })} />);
+    renderHeader(<SortableHeader label="Nom" sort="nom" query={parseLeadsQuery({ tri: 'date.desc' })} />);
     expect(screen.getByRole('link', { name: /Nom/ })).toHaveAttribute(
       'href',
       expect.stringContaining('tri=nom.asc'),
@@ -18,7 +33,7 @@ describe('SortableHeader', () => {
   });
 
   it('reverses the direction when the column is already active', () => {
-    render(<SortableHeader label="Nom" sort="nom" query={parseLeadsQuery({ tri: 'nom.asc' })} />);
+    renderHeader(<SortableHeader label="Nom" sort="nom" query={parseLeadsQuery({ tri: 'nom.asc' })} />);
     expect(screen.getByRole('link', { name: /Nom/ })).toHaveAttribute(
       'href',
       expect.stringContaining('tri=nom.desc'),
@@ -26,7 +41,7 @@ describe('SortableHeader', () => {
   });
 
   it('resets the page, so a re-sort cannot strand the reader past the end', () => {
-    render(<SortableHeader label="Nom" sort="nom" query={parseLeadsQuery({ tri: 'date.desc' })} />);
+    renderHeader(<SortableHeader label="Nom" sort="nom" query={parseLeadsQuery({ tri: 'date.desc' })} />);
     expect(screen.getByRole('link', { name: /Nom/ })).not.toHaveAttribute(
       'href',
       expect.stringContaining('page='),
@@ -34,7 +49,7 @@ describe('SortableHeader', () => {
   });
 
   it('keeps the campaign filter', () => {
-    render(<SortableHeader label="Nom" sort="nom" query={parseLeadsQuery({})} />);
+    renderHeader(<SortableHeader label="Nom" sort="nom" query={parseLeadsQuery({})} />);
     expect(screen.getByRole('link', { name: /Nom/ })).toHaveAttribute(
       'href',
       expect.stringContaining('c=demo-rex-club'),
@@ -42,14 +57,14 @@ describe('SortableHeader', () => {
   });
 
   it('tells assistive tech which way the active column is sorted', () => {
-    const { container } = render(
+    const { container } = renderHeader(
       <SortableHeader label="Nom" sort="nom" query={parseLeadsQuery({ tri: 'nom.asc' })} />,
     );
     expect(container.querySelector('th')).toHaveAttribute('aria-sort', 'ascending');
   });
 
   it('marks an inactive column as unsorted rather than leaving it silent', () => {
-    const { container } = render(
+    const { container } = renderHeader(
       <SortableHeader label="E-mail" sort="email" query={parseLeadsQuery({ tri: 'nom.asc' })} />,
     );
     expect(container.querySelector('th')).toHaveAttribute('aria-sort', 'none');

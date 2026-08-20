@@ -22,15 +22,20 @@ export function SearchBox({ initial }: { initial: string }) {
   const pathname = usePathname();
   const params = useSearchParams();
   const [value, setValue] = useState(initial);
-  // Skip the push on mount, which would otherwise rewrite the URL on every load.
-  const mounted = useRef(false);
+  // The URL already carries `initial`, so there is nothing to push until the
+  // typed value diverges from it. A fired-once boolean does NOT work here:
+  // reactStrictMode (on in this project) double-invokes effects in dev and
+  // refs survive the simulated unmount, so the second invocation would sail
+  // past a "have I mounted yet" flag and schedule a push with nothing typed —
+  // silently dropping ?page= (and any other param) from a deep link. Comparing
+  // against the last COMMITTED value is immune to that replay: both
+  // invocations see the same `value === committed.current` and both skip.
+  const committed = useRef(initial);
 
   useEffect(() => {
-    if (!mounted.current) {
-      mounted.current = true;
-      return;
-    }
+    if (value === committed.current) return;
     const timer = setTimeout(() => {
+      committed.current = value;
       const p = new URLSearchParams(params.toString());
       if (value.trim()) p.set('q', value.trim());
       else p.delete('q');
