@@ -9,6 +9,7 @@ import type {
 } from '@/lib/analytics/types';
 import type { PeriodRange } from '@/lib/period';
 import { createServerClient } from '@/lib/supabase/server';
+import { fetchRecentLeads } from './leads';
 import { classifyPostgrestError, type Failure } from './result';
 import { resolveScope } from './scope';
 import { levelParam } from './scopeParams';
@@ -21,7 +22,8 @@ export interface CampaignDetailData {
   funnel: FunnelRow;
   geo: GeoRow[];
   tech: TechRow[];
-  leads: LeadRow[];
+  /** Null when the read failed — LeadsPreview renders that as its own state, not as zero contacts. */
+  leads: LeadRow[] | null;
 }
 
 /**
@@ -107,7 +109,7 @@ export async function fetchCampaign(args: {
   const from = args.range.from.toISOString();
   const to = args.range.to.toISOString();
 
-  const [overview, daily, funnel, geo, tech] = await Promise.all([
+  const [overview, daily, funnel, geo, tech, leads] = await Promise.all([
     supabase.rpc('client_overview', {
       p_from: from,
       p_to: to,
@@ -120,8 +122,10 @@ export async function fetchCampaign(args: {
     supabase.rpc('client_funnel', { p_slug: campaign.slug }),
     supabase.rpc('client_scans_geo', { p_from: from, p_to: to, p_slug: campaign.slug, p_level: levelParam(geoLevel) }),
     supabase.rpc('client_scans_tech', { p_from: from, p_to: to, p_slug: campaign.slug }),
+    fetchRecentLeads(supabase, campaign.slug),
   ]);
 
+  // Five RPC responses only — fetchRecentLeads never returns an error shape.
   const failed = [overview, daily, funnel, geo, tech].find((r) => r.error);
   if (failed) return { ok: false, failure: classifyPostgrestError(failed.error) };
 
@@ -137,8 +141,7 @@ export async function fetchCampaign(args: {
       funnel: ((funnel.data ?? []) as FunnelRow[])[0] ?? EMPTY_FUNNEL,
       geo: (geo.data ?? []) as GeoRow[],
       tech: (tech.data ?? []) as TechRow[],
-      // TODO(Task 6): fetchRecentLeads(supabase, campaign.slug)
-      leads: [],
+      leads,
     },
   };
 }
