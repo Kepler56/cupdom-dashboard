@@ -32,6 +32,19 @@ describe('escapeCell', () => {
     expect(escapeCell('@SUM(A1)')).toBe("'@SUM(A1)");
     expect(escapeCell('-2+3')).toBe("'-2+3");
     expect(escapeCell('+1')).toBe("'+1");
+    expect(escapeCell('\tSUM(A1)')).toBe("'\tSUM(A1)");
+    // CR is a member of BOTH escapeCell character classes: it triggers the
+    // formula-prefix guard AND the quote-wrap test (unlike TAB, which only
+    // triggers the guard), so a CR-led value also comes out quote-wrapped.
+    expect(escapeCell('\rSUM(A1)')).toBe('"\'\rSUM(A1)"');
+  });
+
+  it('keeps the formula guard INSIDE the quoting, for a value that needs both', () => {
+    // The order of the two escapes in escapeCell is load-bearing. Prefix first,
+    // then quote-wrap: the apostrophe ends up inside the quotes, so Excel still
+    // sees it after un-quoting and treats the cell as text. Reverse the two and
+    // every other test here still passes while the guard silently stops working.
+    expect(escapeCell('=cmd|"/c calc"')).toBe('"\'=cmd|""/c calc"""');
   });
 });
 
