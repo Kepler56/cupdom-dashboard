@@ -385,4 +385,25 @@ describe('dropoffInsight', () => {
     const insight = dropoffInsight(view)!;
     expect(insight.lead + insight.emphasis + insight.tail).toBe(view.worstDrop!.sentence);
   });
+
+  it('flags itself as campaign-lifetime, since client_funnel takes no period', () => {
+    // Spec §4.9. Kept out of `tail` on purpose — see the invariant test above,
+    // which pins `lead + emphasis + tail` to `worstDrop.sentence` exactly.
+    expect(dropoffInsight(funnel())!.note).toBe('depuis le début');
+  });
+});
+
+describe('note', () => {
+  it('is optional: a period-scoped generator leaves it unset', () => {
+    // Only dropoffInsight is not period-scoped (spec §4.9); every other
+    // generator must NOT carry a caveat, or the field would read as universal
+    // rather than as the one exception it is.
+    const insight = peakInsight(
+      buildHeatmap([
+        { dow: 6, hour: 23, scans: 60 },
+        { dow: 2, hour: 12, scans: 40 },
+      ]),
+    );
+    expect(insight?.note).toBeUndefined();
+  });
 });

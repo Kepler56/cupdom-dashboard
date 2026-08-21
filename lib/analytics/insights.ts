@@ -39,6 +39,16 @@ export interface Insight {
   lead: string;
   emphasis: string;
   tail: string;
+  /**
+   * A scope caveat, when this insight does not follow the period selector.
+   *
+   * Only the drop-off carries one: `client_funnel` takes no date parameters, so
+   * it is campaign-lifetime while every other insight in the strip moves with
+   * the period (spec §4.9). Kept OUT of `tail` deliberately — the sentence must
+   * stay byte-identical to `funnel.worstDrop.sentence`, which the invariant test
+   * pins, and a caveat is not part of the quoted sentence.
+   */
+  note?: string;
 }
 
 /** Spec §4.5: « Insights are ranked and the top three are shown. » */
@@ -295,6 +305,13 @@ export function deviceInsight(systems: Ranking): Insight | null {
  * The strength needs the raw ratio, which `worstDrop` does not carry; it is
  * read back off the stage it names. Widening `worstDrop` to carry the same fact
  * in a second format is how the two formats drift apart.
+ *
+ * The only insight in the strip that is NOT period-scoped: `client_funnel`
+ * takes no date parameters and is campaign-lifetime by design (spec §4.9),
+ * while every other generator here follows the period selector. `note` carries
+ * that caveat separately from the sentence — appending it to `tail` would break
+ * the invariant that `lead + emphasis + tail` reproduces `worstDrop.sentence`
+ * byte for byte.
  */
 export function dropoffInsight(funnel: FunnelView): Insight | null {
   const worst = funnel.worstDrop;
@@ -308,6 +325,7 @@ export function dropoffInsight(funnel: FunnelView): Insight | null {
     lead: `Votre plus gros décrochage : ${worst.label.toLowerCase()} — `,
     emphasis: worst.dropLabel,
     tail: ` des personnes s’arrêtent avant cette étape.`,
+    note: 'depuis le début',
   };
 }
 

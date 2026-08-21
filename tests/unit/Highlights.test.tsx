@@ -41,6 +41,25 @@ describe('Highlights', () => {
     expect(sentence).toBeInTheDocument();
   });
 
+  it('renders the scope caveat as a muted parenthetical when the insight carries one', () => {
+    // Spec §4.9. dropoffInsight is the one insight that is not period-scoped
+    // (client_funnel takes no date parameters), and says so via `note` rather
+    // than folding it into `tail` — see lib/analytics/insights.ts.
+    render(<Highlights insights={[insight({ note: 'depuis le début' })]} />);
+    expect(screen.getByText('(depuis le début)')).toBeInTheDocument();
+  });
+
+  it('adds no caveat when the insight does not carry one', () => {
+    render(<Highlights insights={[insight()]} />);
+    const sentence = screen.getByText((_, element) => {
+      return (
+        element?.tagName.toLowerCase() === 'p' &&
+        /Votre pic : samedi 23 h — 34/.test(element.textContent ?? '')
+      );
+    });
+    expect(sentence.textContent).not.toContain('(');
+  });
+
   it('says there is not enough data rather than rendering an empty card', () => {
     // Spec §4.6-3. A « Temps forts » card containing nothing reads as a broken
     // feature; saying why is the honest version and costs one sentence.

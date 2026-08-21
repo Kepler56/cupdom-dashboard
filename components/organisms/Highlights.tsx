@@ -33,6 +33,7 @@ export function Highlights({ insights }: { insights: Insight[] }) {
                 {insight.lead}
                 <strong className="font-semibold text-ink">{insight.emphasis}</strong>
                 {insight.tail}
+                {insight.note && <span className="text-text-muted"> ({insight.note})</span>}
               </p>
             </li>
           ))}
