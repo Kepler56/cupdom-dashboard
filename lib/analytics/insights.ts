@@ -89,26 +89,49 @@ export const MIN_TREND_SCANS = 50;
 export const MIN_TREND_DELTA = 0.1;
 
 /**
+ * How far « 1 personne sur N » may sit from the real rate before we decline to
+ * say it.
+ *
+ * The sentence claims a rate of 1/N. The real rate rarely IS 1/N, and the
+ * « Taux de captation » tile on the same screen shows the true figure to the
+ * point — so a claim that drifts is a claim the client can check and catch.
+ * Two points is the width at which both numbers still round to the same story.
+ * Beyond it the insight says nothing at all, which §4.6-3 prefers to a number
+ * that flatters.
+ */
+export const MAX_CAPTATION_ROUNDING_DRIFT = 0.02;
+
+/** A one-in-four capture is an excellent rate for this product; at or above it the insight is as notable as it gets. */
+export const CAPTATION_RATE_FOR_FULL_STRENGTH = 0.25;
+
+/** A half-again swing between periods is dramatic; beyond it the score saturates rather than crowding out every other insight. */
+export const TREND_DELTA_FOR_FULL_STRENGTH = 0.5;
+
+/**
  * « 1 personne sur 4 vous laisse ses coordonnées. »
  *
  * The spec's own phrasing, and it beats « 25 % » for the same reason the KPI
  * tile keeps the percentage: a proportion of PEOPLE is what a sponsor repeats
- * to their own management. `strength` is the rate itself, so a portal showing
- * three insights leads with a genuinely good conversion rate and buries a
- * mediocre one.
+ * to their own management. `strength` is normalised to the full-strength anchor,
+ * so a portal showing three insights leads with a genuinely good conversion rate
+ * and buries a mediocre one.
  */
 export function captationInsight(current: OverviewRow): Insight | null {
   if (current.uniques < MIN_CAPTATION_UNIQUES) return null;
   if (current.leads < 1) return null;
 
+  const rate = current.leads / current.uniques;
   const oneIn = Math.round(current.uniques / current.leads);
   // « 1 personne sur 1 » is not a sentence, and a 100 % rate is a seeding
   // artefact or a bot rather than a headline.
   if (oneIn < 2) return null;
 
+  // The sentence asserts 1/oneIn. Only say it when that is what the data says.
+  if (Math.abs(rate - 1 / oneIn) > MAX_CAPTATION_ROUNDING_DRIFT) return null;
+
   return {
     id: 'captation',
-    strength: clamp01(current.leads / current.uniques),
+    strength: clamp01(rate / CAPTATION_RATE_FOR_FULL_STRENGTH),
     lead: '',
     emphasis: `1 personne sur ${formatNumber(oneIn)}`,
     tail: ' vous laisse ses coordonnées.',
@@ -122,9 +145,9 @@ export function captationInsight(current: OverviewRow): Insight | null {
  * in kpis.ts already says so beneath the tiles, and a second voice repeating it
  * here would turn an honest disclosure into nagging.
  *
- * `strength` is the magnitude of the move regardless of direction. A 60 % fall
- * is as much a temps fort as a 60 % rise, and hiding it would be exactly the
- * flattery §4.6 exists to prevent.
+ * `strength` is the magnitude of the move regardless of direction, normalised to
+ * the full-strength anchor. A 60 % fall is as much a temps fort as a 60 % rise,
+ * and hiding it would be exactly the flattery §4.6 exists to prevent.
  */
 export function trendInsight(
   current: OverviewRow,
@@ -139,7 +162,7 @@ export function trendInsight(
 
   return {
     id: 'tendance',
-    strength: clamp01(Math.abs(delta)),
+    strength: clamp01(Math.abs(delta) / TREND_DELTA_FOR_FULL_STRENGTH),
     lead: '',
     emphasis: formatSignedPercent(delta),
     tail: ' de scans par rapport à la période précédente.',

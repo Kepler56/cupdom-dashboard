@@ -1,11 +1,14 @@
-﻿import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   captationInsight,
+  CAPTATION_RATE_FOR_FULL_STRENGTH,
+  MAX_CAPTATION_ROUNDING_DRIFT,
   MAX_INSIGHTS,
   MIN_CAPTATION_UNIQUES,
   MIN_TREND_DELTA,
   MIN_TREND_SCANS,
   selectInsights,
+  TREND_DELTA_FOR_FULL_STRENGTH,
   trendInsight,
   type Insight,
 } from '@/lib/analytics/insights';
@@ -97,6 +100,31 @@ describe('captationInsight', () => {
     const good = captationInsight(bucket({ uniques: 400, leads: 100 }))!;
     const poor = captationInsight(bucket({ uniques: 400, leads: 20 }))!;
     expect(good.strength).toBeGreaterThan(poor.strength);
+  });
+
+  it('rejects a rate that drifts too far from the claimed fraction (45% claimed as 1/2)', () => {
+    // uniques 100, leads 45 | real 45.0% | sentence « 1 personne sur 2 » implies 50.0%
+    // Drift = |0.45 - 0.5| = 0.05, which exceeds MAX_CAPTATION_ROUNDING_DRIFT (0.02)
+    expect(captationInsight(bucket({ uniques: 100, leads: 45 }))).toBeNull();
+  });
+
+  it('keeps a rate that drifts just within the tolerance', () => {
+    // Construct a rate that is 1/3 ± 0.019 (just inside the 0.02 tolerance)
+    // Rate = 1/3 + 0.019 = 0.352, so leads = 0.352 * uniques
+    // With uniques = 1000, leads = 352
+    // oneIn = Math.round(1000 / 352) = 3
+    // claimed rate = 1/3 ≈ 0.333, drift = |0.352 - 0.333| ≈ 0.019 < 0.02
+    const insight = captationInsight(bucket({ uniques: 1000, leads: 352 }));
+    expect(insight).not.toBeNull();
+    expect(insight?.emphasis).toBe('1 personne sur 3');
+  });
+
+  it('rejects a rate that drifts just outside the tolerance', () => {
+    // Rate = 1/3 + 0.021 (just outside the 0.02 tolerance)
+    // leads = 0.354 * 1000 = 354
+    // oneIn = Math.round(1000 / 354) = 3
+    // claimed rate = 1/3 ≈ 0.333, drift = |0.354 - 0.333| ≈ 0.021 > 0.02
+    expect(captationInsight(bucket({ uniques: 1000, leads: 354 }))).toBeNull();
   });
 });
 
