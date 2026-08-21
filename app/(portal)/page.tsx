@@ -1,7 +1,19 @@
 import { buildFunnel } from '@/lib/analytics/funnel';
+import { buildHeatmap } from '@/lib/analytics/heatmap';
+import {
+  captationInsight,
+  citiesInsight,
+  deviceInsight,
+  dropoffInsight,
+  peakInsight,
+  selectInsights,
+  trendInsight,
+} from '@/lib/analytics/insights';
 import { buildKpis, trendNote } from '@/lib/analytics/kpis';
+import { buildRanking } from '@/lib/analytics/ranking';
 import { selectedCampaigns } from '@/lib/analytics/selection';
 import { fillDailySeries } from '@/lib/analytics/series';
+import { groupTech } from '@/lib/analytics/tech';
 import { fetchOverview } from '@/lib/data/overview';
 import { parsePeriod, resolvePeriod } from '@/lib/period';
 import { getClientAccount } from '@/lib/session';
@@ -14,6 +26,7 @@ import { KpiTile } from '@/components/molecules/KpiTile';
 import { ScansArea } from '@/components/charts/ScansArea';
 import { CampaignsTable } from '@/components/organisms/CampaignsTable';
 import { FunnelBars } from '@/components/organisms/FunnelBars';
+import { Highlights } from '@/components/organisms/Highlights';
 import { TopBar } from '@/components/organisms/TopBar';
 
 export default async function DashboardPage({
@@ -41,7 +54,7 @@ export default async function DashboardPage({
     );
   }
 
-  const { campaigns, slug, current, previous, daily, funnel, sparklines } = result.data;
+  const { campaigns, slug, current, previous, daily, funnel, sparklines, hourly, geo, tech } = result.data;
 
   // The `?c=` filter means ONE thing across the whole screen. Every module below
   // — KPIs, cost tile, chart, funnel, table — reads this one narrowed list, so a
@@ -78,6 +91,19 @@ export default async function DashboardPage({
     distributionComplete: scope.length > 0 && scope.every((c) => c.distributed_count !== null && c.distributed_count > 0),
   });
   const hasActivity = current.scans > 0 || current.leads > 0;
+
+  // Spec §4.5. A read that failed contributes NO insight rather than a weak one:
+  // `null` here is « we could not find out », which is not a fact about their
+  // audience and must not be turned into one. Each generator applies its own
+  // volume floor on top.
+  const insights = selectInsights([
+    trendInsight(current, previous, range.hasPrevious),
+    captationInsight(current),
+    dropoffInsight(parcours),
+    hourly ? peakInsight(buildHeatmap(hourly)) : null,
+    geo ? citiesInsight(buildRanking(geo)) : null,
+    tech ? deviceInsight(groupTech(tech).os) : null,
+  ]);
 
   return (
     <>
@@ -128,6 +154,8 @@ export default async function DashboardPage({
             </EmptyState>
           )}
         </Card>
+
+        <Highlights insights={insights} />
 
         <div className="grid gap-6 lg:grid-cols-2">
           <div data-testid="funnel" className="contents">
