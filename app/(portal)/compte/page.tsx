@@ -53,7 +53,11 @@ export default async function ComptePage({
   // client_accounts copy. They are written together at provisioning and nothing
   // in the portal changes either — but if they ever diverged, this form would
   // reject a correct password with « mot de passe actuel incorrect », which is
-  // undiagnosable from the message.
+  // undiagnosable from the message. So this is also the address shown in « Vos
+  // informations » below, not account.email: it is the one that actually
+  // determines whether a sign-in succeeds, whereas the account row is
+  // provisioning metadata that can go stale and has no operational meaning to
+  // the sponsor reading this page.
   const authEmail = user?.email ?? account.email;
 
   const consents = await loadConsents(supabase);
@@ -76,7 +80,7 @@ export default async function ComptePage({
             </div>
             <div className="flex flex-wrap gap-x-3">
               <dt className="w-40 shrink-0 text-text-muted">Adresse e-mail</dt>
-              <dd className="text-text-body">{account.email}</dd>
+              <dd className="text-text-body">{authEmail}</dd>
             </div>
           </dl>
           <p className="mt-4 text-xs text-text-muted">
