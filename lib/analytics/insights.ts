@@ -34,7 +34,17 @@ export type InsightId = 'tendance' | 'captation' | 'pic' | 'decrochage' | 'ville
  */
 export interface Insight {
   id: InsightId;
-  /** 0..1. Drives the ranking. Each generator documents what its own scale means. */
+  /**
+   * 0..1. How far this instance sits toward a FULLY NOTABLE instance of its
+   * OWN family — 0 at that family's qualifying bar, 1 at a judged, family-
+   * specific ceiling of "as notable as this kind of fact gets" (never the
+   * theoretical 100 % maximum, which would make most real instances of a
+   * low-cardinality family saturate immediately and turn their ranking over
+   * to the `FAMILY_ORDER` tiebreak). This is what lets six different kinds of
+   * fact — a rate, a swing, a concentration, a share, a drop-off — be
+   * compared on one axis and ranked against each other. Each generator's own
+   * doc comment names its floor and its anchor.
+   */
   strength: number;
   lead: string;
   emphasis: string;
@@ -81,8 +91,15 @@ export function selectInsights(candidates: (Insight | null)[]): Insight[] {
     .slice(0, MAX_INSIGHTS);
 }
 
-/** Strengths are ratios that can legitimately exceed 1 (a doubling is +100 %). */
-export function clamp01(value: number): number {
+/**
+ * Strengths are ratios that can legitimately exceed 1 (a doubling is +100 %).
+ *
+ * Not exported: `heatmap.ts` keeps its own module-private copy for the same
+ * three lines rather than import across these two otherwise-independent
+ * aggregate modules for a helper this small. If a third module ever needs it,
+ * that is the point to promote one copy into a shared home — not before.
+ */
+function clamp01(value: number): number {
   return value < 0 ? 0 : value > 1 ? 1 : value;
 }
 
@@ -185,18 +202,82 @@ export function trendInsight(
 /**
  * The share at which a single hour is as concentrated as this scale records.
  *
- * One cell out of 168 holding a quarter of a period's scans is an extreme
- * concentration; past that the sentence is not more interesting, so the score
- * saturates rather than letting one freakish hour outrank every other insight
- * forever.
+ * A single cell out of 168 absorbing HALF of an entire period's scans is a
+ * near-single-event concentration — roughly 84 times the ~0.6 % a perfectly
+ * uniform week would put in any one cell. Past that the sentence is not more
+ * interesting, so the score saturates rather than letting one freakish hour
+ * outrank every other insight forever.
+ *
+ * Raised from the original 0.25 as part of I1 (whole-branch review, stage 4):
+ * the spec's own example — a 34 % peak — already exceeded 0.25 and saturated,
+ * which is the same premature-ceiling problem I1 fixes for `villes`,
+ * `appareil` and `decrochage`. Left at 0.25, this family would sit alongside
+ * `captation` at a permanent 1.0, and two saturated families is exactly the
+ * "ranking decided by the tiebreak, not by data" bug I1 exists to remove. See
+ * the reference-scenario tests in insights.test.ts, which pin the calibration
+ * across all six families at once.
  */
-export const PEAK_SHARE_FOR_FULL_STRENGTH = 0.25;
+export const PEAK_SHARE_FOR_FULL_STRENGTH = 0.5;
 
 /** Below this, the top three cities are a flat distribution, not a finding. */
 export const MIN_CITIES_SHARE = 0.4;
 
 /** Below this, no system dominates and « la plupart » would be a stretch. */
 export const MIN_DEVICE_SHARE = 0.6;
+
+/**
+ * Three cities covering four-fifths of the audience is a near-total
+ * geographic concentration for a dimension with dozens of possible values
+ * (every commune the geolocation service can resolve, not just a handful of
+ * OSes). Beyond it the story does not get more dramatic — it starts
+ * describing a dataset with almost no other city in it at all, which is a
+ * data-completeness story, not a notability one.
+ */
+export const CITIES_SHARE_FOR_FULL_STRENGTH = 0.8;
+
+/**
+ * A single OS covering 95 % of scans is close to exclusivity for a dimension
+ * with only a handful of real-world values (iOS, Android, and noise).
+ * Higher figures are vanishingly rare in a live audience — some crossover
+ * from work devices, testers or misattribution is normal — so treating them
+ * as a MORE notable story than 95 % would reward a data artefact rather than
+ * a genuinely more concentrated one.
+ */
+export const DEVICE_SHARE_FOR_FULL_STRENGTH = 0.95;
+
+/**
+ * Four in five people abandoning a single funnel step is already a
+ * near-total failure of that step. `MIN_FUNNEL_VOLUME` already screens the
+ * step's own denominator, so this is not guarding against a tiny-N ratio —
+ * it is the point past which a worse ratio does not tell a more urgent story,
+ * it just describes the rare case where almost literally everyone drops.
+ */
+export const DROPOFF_RATIO_FOR_FULL_STRENGTH = 0.8;
+
+/**
+ * The presentation floor for `villes` and `appareil`, ABOVE `MIN_RANKING_VOLUME`.
+ *
+ * `MIN_RANKING_VOLUME` (20, ranking.ts) is calibrated for the `/audience`
+ * ranked-bars card, which discloses its own thinness: a low-data note below
+ * the threshold, and raw counts beside every share above it. The « Temps
+ * forts » strip carries neither disclosure — no count, no caveat — so a
+ * sponsor's first 20 scans, however they happen to split, can produce a bare
+ * « 100 % » claim under a heading that reads as a settled fact (spec §4.6-3).
+ *
+ * This is a PRESENTATION floor for the strip, not a re-derivation of the
+ * chart's threshold: `MIN_RANKING_VOLUME` still governs whether the numbers
+ * are trustworthy at all, and this module still inherits that judgement
+ * (`enoughData`) before ever reaching this check. It does not contradict
+ * `MIN_RANKING_VOLUME` — it adds a second, stricter requirement on top of it,
+ * because the chart discloses its own thinness and the strip cannot.
+ *
+ * Set on the same order of magnitude as `MIN_CAPTATION_UNIQUES` (50): the
+ * smallest sample this module is willing to build an uncaveated headline on.
+ */
+export const MIN_CITIES_INSIGHT_VOLUME = 50;
+
+/** See `MIN_CITIES_INSIGHT_VOLUME` — the same rule, for the technology ranking. */
+export const MIN_DEVICE_INSIGHT_VOLUME = 50;
 
 /** How many places the cities sentence names. */
 const CITIES_NAMED = 3;
@@ -238,13 +319,22 @@ export function peakInsight(heatmap: Heatmap): Insight | null {
  * The rolled-up « Autres » row is excluded for the same reason: it is a
  * container, not a place.
  *
- * `strength` is how far past the qualifying bar the top three have reached.
- * At MIN_CITIES_SHARE it is zero; at full concentration (1.0) it is one.
- * This prevents a barely-qualifying city insight from outranking a real trend
- * merely because the bar itself is high.
+ * `strength` is how far past the qualifying bar the top three have reached,
+ * toward `CITIES_SHARE_FOR_FULL_STRENGTH` — a JUDGED ceiling for "as
+ * concentrated as this kind of fact gets", not the theoretical 100 %. At
+ * MIN_CITIES_SHARE it is zero; at the judged ceiling it is one. This prevents
+ * a barely-qualifying city insight from outranking a real trend merely
+ * because the bar itself is high, AND prevents a share that is merely
+ * dominant (rather than exceptional) from saturating and out-competing every
+ * other family purely on a tie.
+ *
+ * `MIN_CITIES_INSIGHT_VOLUME` is a second, stricter floor than
+ * `geo.enoughData` — see its doc comment in this file for why the strip
+ * cannot reuse the chart's own threshold as-is.
  */
 export function citiesInsight(geo: Ranking): Insight | null {
   if (!geo.enoughData || geo.empty) return null;
+  if (geo.total < MIN_CITIES_INSIGHT_VOLUME) return null;
 
   const named = geo.rows
     .filter((row) => !row.isOther && row.label !== UNKNOWN_LABEL)
@@ -259,7 +349,7 @@ export function citiesInsight(geo: Ranking): Insight | null {
 
   return {
     id: 'villes',
-    strength: clamp01((share - MIN_CITIES_SHARE) / (1 - MIN_CITIES_SHARE)),
+    strength: clamp01((share - MIN_CITIES_SHARE) / (CITIES_SHARE_FOR_FULL_STRENGTH - MIN_CITIES_SHARE)),
     lead: '',
     emphasis: named.map((row) => row.label).join(', '),
     tail: ` = ${formatPercent(share)} de votre audience.`,
@@ -267,29 +357,42 @@ export function citiesInsight(geo: Ranking): Insight | null {
 }
 
 /**
- * « 87 % de vos scans viennent d’un appareil iOS. »
+ * « 87 % de vos scans viennent d’un système iOS. »
  *
  * The spec writes « scannent sur iPhone ». We record an OS, and an iPad is iOS
  * too — see Known gaps 1. The label passes through exactly as `humanTechLabel`
  * left it, because OS names are proper nouns the sponsor already uses.
  *
- * `strength` is how far past the dominance bar the top system has reached.
- * At MIN_DEVICE_SHARE it is zero; at full market share (1.0) it is one.
- * This prevents a barely-qualifying device insight from outranking a real trend
- * merely because the bar itself is high.
+ * Says « système », not « appareil »: this is built from `groupTech(tech).os`,
+ * and `/audience` labels that dimension « Système », reserving « Appareil »
+ * for `device_type` (Mobile / Ordinateur / Tablette). A sponsor cross-checking
+ * this sentence against the « Comment » card must find the same word there.
+ *
+ * `strength` is how far past the dominance bar the top system has reached,
+ * toward `DEVICE_SHARE_FOR_FULL_STRENGTH` — a JUDGED ceiling, not the
+ * theoretical 100 %. At MIN_DEVICE_SHARE it is zero; at the judged ceiling it
+ * is one. This prevents a barely-qualifying device insight from outranking a
+ * real trend merely because the bar itself is high, AND prevents a share
+ * that is merely dominant (rather than exceptional) from saturating and
+ * out-competing every other family purely on a tie.
+ *
+ * `MIN_DEVICE_INSIGHT_VOLUME` is a second, stricter floor than
+ * `systems.enoughData` — see `MIN_CITIES_INSIGHT_VOLUME`'s doc comment for why
+ * the strip cannot reuse the chart's own threshold as-is.
  */
 export function deviceInsight(systems: Ranking): Insight | null {
   if (!systems.enoughData || systems.empty) return null;
+  if (systems.total < MIN_DEVICE_INSIGHT_VOLUME) return null;
 
   const top = systems.rows.find((row) => !row.isOther && row.label !== UNKNOWN_LABEL);
   if (!top || top.share < MIN_DEVICE_SHARE) return null;
 
   return {
     id: 'appareil',
-    strength: clamp01((top.share - MIN_DEVICE_SHARE) / (1 - MIN_DEVICE_SHARE)),
+    strength: clamp01((top.share - MIN_DEVICE_SHARE) / (DEVICE_SHARE_FOR_FULL_STRENGTH - MIN_DEVICE_SHARE)),
     lead: '',
     emphasis: top.shareLabel,
-    tail: ` de vos scans viennent d’un appareil ${top.label}.`,
+    tail: ` de vos scans viennent d’un système ${top.label}.`,
   };
 }
 
@@ -306,6 +409,12 @@ export function deviceInsight(systems: Ranking): Insight | null {
  * read back off the stage it names. Widening `worstDrop` to carry the same fact
  * in a second format is how the two formats drift apart.
  *
+ * `strength` is the ratio normalised against `DROPOFF_RATIO_FOR_FULL_STRENGTH`
+ * — a JUDGED ceiling for "as bad a drop-off as this scale records", not the
+ * theoretical 100 %. There is no separate floor to subtract: any positive
+ * ratio at a step that cleared `MIN_FUNNEL_VOLUME` already qualifies as the
+ * worst one `buildFunnel` found, so 0 is the right floor.
+ *
  * The only insight in the strip that is NOT period-scoped: `client_funnel`
  * takes no date parameters and is campaign-lifetime by design (spec §4.9),
  * while every other generator here follows the period selector. `note` carries
@@ -321,11 +430,10 @@ export function dropoffInsight(funnel: FunnelView): Insight | null {
 
   return {
     id: 'decrochage',
-    strength: clamp01(ratio),
+    strength: clamp01(ratio / DROPOFF_RATIO_FOR_FULL_STRENGTH),
     lead: `Votre plus gros décrochage : ${worst.label.toLowerCase()} — `,
     emphasis: worst.dropLabel,
     tail: ` des personnes s’arrêtent avant cette étape.`,
     note: 'depuis le début',
   };
 }
-

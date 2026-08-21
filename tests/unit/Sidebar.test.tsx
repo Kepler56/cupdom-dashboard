@@ -37,7 +37,7 @@ describe('Sidebar', () => {
 
   it('does not mark « Vue d’ensemble » on every page just because its href is /', () => {
     render(<Sidebar pathname="/audience" />);
-    expect(screen.getByRole('link', { name: /Vue d'ensemble/ })).not.toHaveAttribute('aria-current');
+    expect(screen.getByRole('link', { name: /Vue d’ensemble/ })).not.toHaveAttribute('aria-current');
   });
 });
 

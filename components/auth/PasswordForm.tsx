@@ -40,7 +40,7 @@ export function PasswordForm() {
 
     const { error: updateError } = await supabase.auth.updateUser({ password });
     if (updateError) {
-      setError("Impossible d'enregistrer ce mot de passe. Réessayez.");
+      setError('Impossible d’enregistrer ce mot de passe. Réessayez.');
       setBusy(false);
       return;
     }

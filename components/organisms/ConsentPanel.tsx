@@ -17,8 +17,7 @@ export function ConsentPanel({ consents }: { consents: ConsentRow[] | null }) {
     return (
       <Card title="Base légale">
         <p className="text-sm text-text-body">
-          Nous n’avons pas pu charger la formulation de consentement. Rechargez la page dans un instant —
-          vos contacts restent affichés ci-dessus.
+          Nous n’avons pas pu charger la formulation de consentement. Rechargez la page dans un instant.
         </p>
       </Card>
     );

@@ -3,15 +3,21 @@ import {
   captationInsight,
   CAPTATION_RATE_FOR_FULL_STRENGTH,
   citiesInsight,
+  CITIES_SHARE_FOR_FULL_STRENGTH,
   deviceInsight,
+  DEVICE_SHARE_FOR_FULL_STRENGTH,
   dropoffInsight,
+  DROPOFF_RATIO_FOR_FULL_STRENGTH,
   MAX_CAPTATION_ROUNDING_DRIFT,
   MAX_INSIGHTS,
   MIN_CAPTATION_UNIQUES,
+  MIN_CITIES_INSIGHT_VOLUME,
   MIN_CITIES_SHARE,
+  MIN_DEVICE_INSIGHT_VOLUME,
   MIN_DEVICE_SHARE,
   MIN_TREND_DELTA,
   MIN_TREND_SCANS,
+  PEAK_SHARE_FOR_FULL_STRENGTH,
   peakInsight,
   selectInsights,
   TREND_DELTA_FOR_FULL_STRENGTH,
@@ -20,7 +26,7 @@ import {
 } from '@/lib/analytics/insights';
 import { buildFunnel } from '@/lib/analytics/funnel';
 import { buildHeatmap } from '@/lib/analytics/heatmap';
-import { buildRanking, type Ranking } from '@/lib/analytics/ranking';
+import { buildRanking, MIN_RANKING_VOLUME, type Ranking } from '@/lib/analytics/ranking';
 import type { OverviewRow } from '@/lib/analytics/types';
 
 const insight = (id: Insight['id'], strength: number): Insight => ({
@@ -295,6 +301,25 @@ describe('citiesInsight', () => {
     expect(barelyQualifying!.strength).toBeGreaterThan(0);
     expect(barelyQualifying!.strength).toBeLessThan(0.05);
   });
+
+  it('I3: stays silent below MIN_CITIES_INSIGHT_VOLUME even when MIN_RANKING_VOLUME is cleared', () => {
+    // Total 30: clears MIN_RANKING_VOLUME (20), so `geo.enoughData` is true and
+    // the /audience ranked-bars card would render these shares without a
+    // low-data note. The top three are 100 % of the total (a first-visit-sized
+    // sample splits almost however it likes), which clears MIN_CITIES_SHARE
+    // too — so the ONLY thing standing between this fixture and a bare « 100 %
+    // de votre audience » headline is the strip's own, stricter floor.
+    const total = 30;
+    expect(total).toBeGreaterThanOrEqual(MIN_RANKING_VOLUME);
+    expect(total).toBeLessThan(MIN_CITIES_INSIGHT_VOLUME);
+    const thin = buildRanking([
+      { label: 'Paris', scans: 18 },
+      { label: 'Lyon', scans: 8 },
+      { label: 'Marseille', scans: 4 },
+    ]);
+    expect(thin.enoughData).toBe(true); // MIN_RANKING_VOLUME is cleared
+    expect(citiesInsight(thin)).toBeNull(); // MIN_CITIES_INSIGHT_VOLUME is not
+  });
 });
 
 describe('deviceInsight', () => {
@@ -343,6 +368,22 @@ describe('deviceInsight', () => {
     expect(barelyQualifying).not.toBeNull();
     expect(barelyQualifying!.strength).toBeGreaterThan(0);
     expect(barelyQualifying!.strength).toBeLessThan(0.05);
+  });
+
+  it('I3: stays silent below MIN_DEVICE_INSIGHT_VOLUME even when MIN_RANKING_VOLUME is cleared', () => {
+    // Total 30: clears MIN_RANKING_VOLUME (20) but not the strip's own,
+    // stricter floor. iOS is 25 of 30 = 83 %, clearing MIN_DEVICE_SHARE too —
+    // a brand-new sponsor's first visit should not headline « 100 % de vos
+    // scans viennent d'un système iOS » on a 30-scan sample.
+    const total = 30;
+    expect(total).toBeGreaterThanOrEqual(MIN_RANKING_VOLUME);
+    expect(total).toBeLessThan(MIN_DEVICE_INSIGHT_VOLUME);
+    const thin = buildRanking([
+      { label: 'iOS', scans: 25 },
+      { label: 'Android', scans: 5 },
+    ]);
+    expect(thin.enoughData).toBe(true); // MIN_RANKING_VOLUME is cleared
+    expect(deviceInsight(thin)).toBeNull(); // MIN_DEVICE_INSIGHT_VOLUME is not
   });
 });
 
@@ -405,5 +446,137 @@ describe('note', () => {
       ]),
     );
     expect(insight?.note).toBeUndefined();
+  });
+});
+
+/**
+ * I2: pins the RANKING AXIS itself, not just each generator in isolation.
+ *
+ * Every other describe block above compares strengths WITHIN one family. None
+ * compares ACROSS families — which is the entire point of `strength`, per
+ * insights.ts's own doc comment. Without this, any anchor constant could be
+ * changed to any value and the rest of the suite would stay green while a
+ * different three sentences reached the sponsor.
+ *
+ * The six fixtures below are real inputs — real OverviewRows, a real
+ * buildHeatmap/buildRanking/buildFunnel — chosen so the real generators
+ * reproduce the spec's own six example sentences exactly:
+ *   captation « 1 personne sur 4 », tendance « +38 % »,
+ *   pic « samedi 23 h — 34 % », villes « Paris, Lyon, Marseille = 62 % »,
+ *   appareil « 87 % … iOS », decrochage « 58 % ».
+ */
+describe('the ranking axis — a reference scenario built from the spec’s own six examples', () => {
+  const current: OverviewRow = { bucket: 'current', scans: 1380, uniques: 400, leads: 100 };
+  const previous: OverviewRow = { bucket: 'previous', scans: 1000, uniques: 300, leads: 60 };
+
+  // Peak share 34 %: 34 of a 100-scan total lands on samedi 23 h. Three
+  // 22-scan filler cells keep every OTHER cell below 34, so samedi 23 h stays
+  // the busiest one rather than being outweighed by its own remainder.
+  const heatmap = buildHeatmap([
+    { dow: 6, hour: 23, scans: 34 },
+    { dow: 2, hour: 12, scans: 22 },
+    { dow: 3, hour: 10, scans: 22 },
+    { dow: 4, hour: 15, scans: 22 },
+  ]);
+
+  // Top three (Paris, Lyon, Marseille) = 620 of 1 000 = 62 %. Five filler
+  // cities of 76 each soak up the rest without outranking Marseille (100) or
+  // creating an « Autres » row (8 rows, under MAX_RANKED_ROWS).
+  const geo = buildRanking([
+    { label: 'Paris', scans: 400 },
+    { label: 'Lyon', scans: 120 },
+    { label: 'Marseille', scans: 100 },
+    { label: 'Ville3', scans: 76 },
+    { label: 'Ville4', scans: 76 },
+    { label: 'Ville5', scans: 76 },
+    { label: 'Ville6', scans: 76 },
+    { label: 'Ville7', scans: 76 },
+  ]);
+
+  // iOS = 870 of 1 000 = 87 %.
+  const systems = buildRanking([
+    { label: 'iOS', scans: 870 },
+    { label: 'Android', scans: 130 },
+  ]);
+
+  // formulaire_vu (900) -> formulaire_soumis (378) is a 58 % drop, the worst
+  // of the four candidate steps (scannes -> formulaire_vu is 10 %,
+  // formulaire_soumis -> offre_atteinte is ~2 %; distribues -> scannes is
+  // excluded from candidacy by buildFunnel itself).
+  const funnel = buildFunnel(
+    { distribues: 5000, scannes: 1000, formulaire_vu: 900, formulaire_soumis: 378, offre_atteinte: 370 },
+    { distributionComplete: true },
+  );
+
+  const candidates = () => [
+    captationInsight(current),
+    trendInsight(current, previous, true),
+    peakInsight(heatmap),
+    citiesInsight(geo),
+    deviceInsight(systems),
+    dropoffInsight(funnel),
+  ];
+
+  it('reproduces the spec’s six example sentences from real aggregates, not synthetic Insight literals', () => {
+    const [captation, tendance, pic, villes, appareil, decrochage] = candidates();
+    expect(captation?.emphasis).toBe('1 personne sur 4');
+    expect(tendance?.emphasis).toBe('+38 %');
+    expect(pic?.emphasis).toBe('samedi 23 h');
+    expect(villes?.emphasis).toBe('Paris, Lyon, Marseille');
+    expect(appareil?.emphasis).toBe('87 %');
+    expect(decrochage?.emphasis).toBe('58 %');
+  });
+
+  it('lets at most one of the six families saturate at 1.0 — a tied 1.0 is a ranking decided by FAMILY_ORDER, not by data', () => {
+    const all = candidates().filter((c): c is Insight => c !== null);
+    expect(all).toHaveLength(6);
+
+    const saturated = all.filter((c) => c.strength === 1);
+    expect(saturated.length).toBeLessThanOrEqual(1);
+  });
+
+  it('ranks the top three the calibrated axis produces', () => {
+    const top3 = selectInsights(candidates()).map((c) => c.id);
+    // captation: a 1-in-4 conversion is the product's own definition of "as
+    // notable as it gets" — the one family this scenario deliberately keeps
+    // saturated.
+    // appareil: 87 % iOS sits closer to full OS dominance than tendance's
+    // 38 % swing sits to a fully dramatic period-over-period move.
+    // tendance: the 38 % swing edges out decrochage's 58 % drop-off, pic's
+    // 34 % concentration and villes' 62 % — each closer to its OWN floor than
+    // to its OWN ceiling.
+    expect(top3).toEqual(['captation', 'appareil', 'tendance']);
+  });
+
+  it('scores captation, tendance, appareil, villes, decrochage and pic against their named anchor constants — the load-bearing use the imports were missing', () => {
+    const rate = current.leads / current.uniques; // 0.25
+    const captation = captationInsight(current)!;
+    expect(captation.strength).toBeCloseTo(rate / CAPTATION_RATE_FOR_FULL_STRENGTH, 6);
+
+    const delta = (current.scans - previous.scans) / previous.scans; // 0.38
+    const tendance = trendInsight(current, previous, true)!;
+    expect(tendance.strength).toBeCloseTo(delta / TREND_DELTA_FOR_FULL_STRENGTH, 6);
+
+    const peakShare = heatmap.peak!.scans / heatmap.total; // 0.34
+    const pic = peakInsight(heatmap)!;
+    expect(pic.strength).toBeCloseTo(peakShare / PEAK_SHARE_FOR_FULL_STRENGTH, 6);
+
+    const villesShare = 0.62;
+    const villes = citiesInsight(geo)!;
+    expect(villes.strength).toBeCloseTo(
+      (villesShare - MIN_CITIES_SHARE) / (CITIES_SHARE_FOR_FULL_STRENGTH - MIN_CITIES_SHARE),
+      6,
+    );
+
+    const appareilShare = 0.87;
+    const appareil = deviceInsight(systems)!;
+    expect(appareil.strength).toBeCloseTo(
+      (appareilShare - MIN_DEVICE_SHARE) / (DEVICE_SHARE_FOR_FULL_STRENGTH - MIN_DEVICE_SHARE),
+      6,
+    );
+
+    const dropRatio = 0.58;
+    const decrochage = dropoffInsight(funnel)!;
+    expect(decrochage.strength).toBeCloseTo(dropRatio / DROPOFF_RATIO_FOR_FULL_STRENGTH, 6);
   });
 });

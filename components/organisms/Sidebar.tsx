@@ -14,7 +14,7 @@ import { Point } from '@/components/atoms/Point';
  * are.
  */
 export const NAV = [
-  { href: '/', label: "Vue d'ensemble", icon: Home },
+  { href: '/', label: 'Vue d’ensemble', icon: Home },
   { href: '/audience', label: 'Audience', icon: BarChart3 },
   { href: '/campagnes', label: 'Campagnes', icon: Megaphone },
   { href: '/contacts', label: 'Contacts captés', icon: Users },
