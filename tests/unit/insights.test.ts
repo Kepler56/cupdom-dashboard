@@ -30,6 +30,7 @@ describe('selectInsights', () => {
       insight('captation', 0.6),
       insight('tendance', 0.5),
     ];
+    expect(selectInsights(many).map((i) => i.id)).toEqual(['pic', 'villes', 'appareil']);
     expect(selectInsights(many)).toHaveLength(MAX_INSIGHTS);
   });
 
