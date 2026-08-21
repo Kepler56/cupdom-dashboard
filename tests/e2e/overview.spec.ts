@@ -45,3 +45,23 @@ test('the period selector drives the URL', async ({ page }) => {
 test('the funnel states that it covers the whole campaign', async ({ page }) => {
   await expect(page.getByTestId('funnel').getByText(/depuis le début/i)).toBeVisible();
 });
+
+test('les temps forts sont générés à partir des chiffres de la période', async ({ page }) => {
+  await page.goto('/');
+
+  const card = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Temps forts', exact: true }) });
+  await expect(card).toBeVisible();
+
+  // Assert the CARD, not a sentence. Which insights qualify depends on the
+  // seeded data and on the period, so pinning « Votre pic : samedi 23 h » here
+  // would make this test a check on the demo dataset rather than on the
+  // feature. Either three bullets or the honest empty state is a pass; a blank
+  // card is not.
+  const bullets = card.getByRole('listitem');
+  const count = await bullets.count();
+  if (count === 0) {
+    await expect(card.getByText('Pas encore assez de données')).toBeVisible();
+  } else {
+    expect(count).toBeLessThanOrEqual(3);
+  }
+});
