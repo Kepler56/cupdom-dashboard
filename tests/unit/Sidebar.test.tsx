@@ -57,9 +57,8 @@ describe('Sidebar — every nav entry points at a route that exists', () => {
     }
   });
 
-  it('does not link the stage-3C routes before stage 3C ships them', () => {
+  it('does not link the stage-4 route before stage 4 ships it', () => {
     const hrefs = NAV.map((item) => item.href);
-    expect(hrefs).not.toContain('/contacts');
     expect(hrefs).not.toContain('/compte');
   });
 });
