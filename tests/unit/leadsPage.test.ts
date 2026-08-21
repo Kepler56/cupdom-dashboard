@@ -100,4 +100,10 @@ describe('selectLeads', () => {
     expect(called(b.calls, 'limit')).toEqual([[5000]]);
     expect(called(b.calls, 'range')).toEqual([]);
   });
+
+  it('reads the leads table, which no other assertion in this file pins', () => {
+    const b = builder();
+    selectLeads(b.client as never, { query: parseLeadsQuery({}), slug: null });
+    expect(b.client.from).toHaveBeenCalledWith('leads');
+  });
 });

@@ -27,7 +27,7 @@ export function SearchBox({ initial }: { initial: string }) {
   // reactStrictMode (on in this project) double-invokes effects in dev and
   // refs survive the simulated unmount, so the second invocation would sail
   // past a "have I mounted yet" flag and schedule a push with nothing typed —
-  // silently dropping ?page= (and any other param) from a deep link. Comparing
+  // silently dropping ?page= from a deep link. Comparing
   // against the last COMMITTED value is immune to that replay: both
   // invocations see the same `value === committed.current` and both skip.
   const committed = useRef(initial);
