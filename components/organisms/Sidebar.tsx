@@ -1,23 +1,24 @@
-import { BarChart3, Home, Megaphone, Users } from 'lucide-react';
+import { BarChart3, Home, Megaphone, Settings, Users } from 'lucide-react';
 import { NavItem } from '@/components/molecules/NavItem';
 import { Point } from '@/components/atoms/Point';
 
 /**
  * Only routes that exist.
  *
- * « Mon compte » (/compte) is STAGE 4 and is restored there, with its Settings
- * icon. It stays out rather than being disabled because a dead link in a
- * client-facing product is worse than an absent one — the same principle
- * LeadsPreview states for its missing export link.
- *
- * « Contacts captés » was removed alongside it in stage 3B and is restored here,
- * now that the route exists.
+ * Every entry here is checked against the filesystem by
+ * tests/unit/Sidebar.test.tsx, because a dead link in a client-facing product
+ * is worse than an absent one and the sidebar is on every portal page — one
+ * stale href sends a paying sponsor to a 404 from anywhere in the product.
+ * « Contacts captés » and « Mon compte » were both out of this list for two
+ * stages for exactly that reason, and both are here now because their screens
+ * are.
  */
 export const NAV = [
   { href: '/', label: "Vue d'ensemble", icon: Home },
   { href: '/audience', label: 'Audience', icon: BarChart3 },
   { href: '/campagnes', label: 'Campagnes', icon: Megaphone },
   { href: '/contacts', label: 'Contacts captés', icon: Users },
+  { href: '/compte', label: 'Mon compte', icon: Settings },
 ];
 
 export function Sidebar({ pathname }: { pathname: string }) {

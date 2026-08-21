@@ -56,9 +56,4 @@ describe('Sidebar — every nav entry points at a route that exists', () => {
       expect(routes, `${item.href} (« ${item.label} ») is in the nav`).toContain(item.href);
     }
   });
-
-  it('does not link the stage-4 route before stage 4 ships it', () => {
-    const hrefs = NAV.map((item) => item.href);
-    expect(hrefs).not.toContain('/compte');
-  });
 });
