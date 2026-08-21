@@ -227,6 +227,11 @@ export function peakInsight(heatmap: Heatmap): Insight | null {
  *
  * The rolled-up « Autres » row is excluded for the same reason: it is a
  * container, not a place.
+ *
+ * `strength` is how far past the qualifying bar the top three have reached.
+ * At MIN_CITIES_SHARE it is zero; at full concentration (1.0) it is one.
+ * This prevents a barely-qualifying city insight from outranking a real trend
+ * merely because the bar itself is high.
  */
 export function citiesInsight(geo: Ranking): Insight | null {
   if (!geo.enoughData || geo.empty) return null;
@@ -244,7 +249,7 @@ export function citiesInsight(geo: Ranking): Insight | null {
 
   return {
     id: 'villes',
-    strength: clamp01(share),
+    strength: clamp01((share - MIN_CITIES_SHARE) / (1 - MIN_CITIES_SHARE)),
     lead: '',
     emphasis: named.map((row) => row.label).join(', '),
     tail: ` = ${formatPercent(share)} de votre audience.`,
@@ -257,6 +262,11 @@ export function citiesInsight(geo: Ranking): Insight | null {
  * The spec writes « scannent sur iPhone ». We record an OS, and an iPad is iOS
  * too — see Known gaps 1. The label passes through exactly as `humanTechLabel`
  * left it, because OS names are proper nouns the sponsor already uses.
+ *
+ * `strength` is how far past the dominance bar the top system has reached.
+ * At MIN_DEVICE_SHARE it is zero; at full market share (1.0) it is one.
+ * This prevents a barely-qualifying device insight from outranking a real trend
+ * merely because the bar itself is high.
  */
 export function deviceInsight(systems: Ranking): Insight | null {
   if (!systems.enoughData || systems.empty) return null;
@@ -266,10 +276,10 @@ export function deviceInsight(systems: Ranking): Insight | null {
 
   return {
     id: 'appareil',
-    strength: clamp01(top.share),
+    strength: clamp01((top.share - MIN_DEVICE_SHARE) / (1 - MIN_DEVICE_SHARE)),
     lead: '',
     emphasis: top.shareLabel,
-    tail: ` de vos scans viennent d\u2019un appareil ${top.label}.`,
+    tail: ` de vos scans viennent d'un appareil ${top.label}.`,
   };
 }
 
@@ -295,8 +305,9 @@ export function dropoffInsight(funnel: FunnelView): Insight | null {
   return {
     id: 'decrochage',
     strength: clamp01(ratio),
-    lead: `Votre plus gros d\u00e9crochage : ${worst.label.toLowerCase()} — `,
+    lead: `Votre plus gros décrochage : ${worst.label.toLowerCase()} — `,
     emphasis: worst.dropLabel,
-    tail: ` des personnes s\u2019arr\u00eatent avant cette \u00e9tape.`,
+    tail: ` des personnes s'arrêtent avant cette étape.`,
   };
 }
+
