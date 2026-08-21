@@ -15,8 +15,11 @@
  * handful of scans. »
  */
 
-import { formatNumber, formatSignedPercent } from './format';
+import { formatNumber, formatPercent, formatSignedPercent } from './format';
 import type { OverviewRow } from './types';
+import type { FunnelView } from './funnel';
+import type { Heatmap } from './heatmap';
+import { UNKNOWN_LABEL, type Ranking } from './ranking';
 
 export type InsightId = 'tendance' | 'captation' | 'pic' | 'decrochage' | 'villes' | 'appareil';
 
@@ -166,5 +169,134 @@ export function trendInsight(
     lead: '',
     emphasis: formatSignedPercent(delta),
     tail: ' de scans par rapport à la période précédente.',
+  };
+}
+
+/**
+ * The share at which a single hour is as concentrated as this scale records.
+ *
+ * One cell out of 168 holding a quarter of a period's scans is an extreme
+ * concentration; past that the sentence is not more interesting, so the score
+ * saturates rather than letting one freakish hour outrank every other insight
+ * forever.
+ */
+export const PEAK_SHARE_FOR_FULL_STRENGTH = 0.25;
+
+/** Below this, the top three cities are a flat distribution, not a finding. */
+export const MIN_CITIES_SHARE = 0.4;
+
+/** Below this, no system dominates and « la plupart » would be a stretch. */
+export const MIN_DEVICE_SHARE = 0.6;
+
+/** How many places the cities sentence names. */
+const CITIES_NAMED = 3;
+
+/**
+ * « Votre pic : samedi 23 h — 34 % de vos scans sur la période. »
+ *
+ * The spec's example says « de vos scans du week-end »; this says « sur la
+ * période ». `buildHeatmap` totals the whole window and a weekend sub-total
+ * would be a seventh aggregate for one clause — see Known gaps 2. The smaller
+ * true number is worth more than the larger ambiguous one.
+ *
+ * The volume judgement is entirely `buildHeatmap`'s: it returns `peak: null`
+ * below MIN_HEATMAP_VOLUME, and inheriting that is the point of taking the view
+ * model rather than the rows.
+ */
+export function peakInsight(heatmap: Heatmap): Insight | null {
+  if (!heatmap.peak || heatmap.total <= 0) return null;
+
+  const share = heatmap.peak.scans / heatmap.total;
+
+  return {
+    id: 'pic',
+    strength: clamp01(share / PEAK_SHARE_FOR_FULL_STRENGTH),
+    lead: 'Votre pic : ',
+    emphasis: heatmap.peak.label,
+    tail: ` — ${formatPercent(share)} de vos scans sur la période.`,
+  };
+}
+
+/**
+ * « Paris, Lyon, Marseille = 62 % de votre audience. »
+ *
+ * `Inconnu` is excluded before the top three are taken. It is what the RPC
+ * coalesces a missing city to, and a sentence led by it would be a statement
+ * about our geolocation coverage dressed as a statement about their audience —
+ * the precise species of misleading number §4.6 is written against.
+ *
+ * The rolled-up « Autres » row is excluded for the same reason: it is a
+ * container, not a place.
+ */
+export function citiesInsight(geo: Ranking): Insight | null {
+  if (!geo.enoughData || geo.empty) return null;
+
+  const named = geo.rows
+    .filter((row) => !row.isOther && row.label !== UNKNOWN_LABEL)
+    .slice(0, CITIES_NAMED);
+
+  // One city is what the geography card already shows at a glance. The insight
+  // earns its place by summarising a distribution, which needs a distribution.
+  if (named.length < 2) return null;
+
+  const share = named.reduce((sum, row) => sum + row.share, 0);
+  if (share < MIN_CITIES_SHARE) return null;
+
+  return {
+    id: 'villes',
+    strength: clamp01(share),
+    lead: '',
+    emphasis: named.map((row) => row.label).join(', '),
+    tail: ` = ${formatPercent(share)} de votre audience.`,
+  };
+}
+
+/**
+ * « 87 % de vos scans viennent d'un appareil iOS. »
+ *
+ * The spec writes « scannent sur iPhone ». We record an OS, and an iPad is iOS
+ * too — see Known gaps 1. The label passes through exactly as `humanTechLabel`
+ * left it, because OS names are proper nouns the sponsor already uses.
+ */
+export function deviceInsight(systems: Ranking): Insight | null {
+  if (!systems.enoughData || systems.empty) return null;
+
+  const top = systems.rows.find((row) => !row.isOther && row.label !== UNKNOWN_LABEL);
+  if (!top || top.share < MIN_DEVICE_SHARE) return null;
+
+  return {
+    id: 'appareil',
+    strength: clamp01(top.share),
+    lead: '',
+    emphasis: top.shareLabel,
+    tail: ` de vos scans viennent d\u2019un appareil ${top.label}.`,
+  };
+}
+
+/**
+ * « Votre plus gros décrochage : formulaire envoyé — 58 % des personnes
+ * s'arrêtent avant cette étape. »
+ *
+ * The wording is `buildFunnel`'s, re-split at its emphasis rather than
+ * rewritten. Two phrasings of the same fact, one under the funnel chart and one
+ * in the strip above it, would eventually disagree — and the reader would be
+ * right to trust neither.
+ *
+ * The strength needs the raw ratio, which `worstDrop` does not carry; it is
+ * read back off the stage it names. Widening `worstDrop` to carry the same fact
+ * in a second format is how the two formats drift apart.
+ */
+export function dropoffInsight(funnel: FunnelView): Insight | null {
+  const worst = funnel.worstDrop;
+  if (!worst) return null;
+
+  const ratio = funnel.stages.find((stage) => stage.id === worst.id)?.drop ?? 0;
+
+  return {
+    id: 'decrochage',
+    strength: clamp01(ratio),
+    lead: `Votre plus gros d\u00e9crochage : ${worst.label.toLowerCase()} — `,
+    emphasis: worst.dropLabel,
+    tail: ` des personnes s\u2019arr\u00eatent avant cette \u00e9tape.`,
   };
 }

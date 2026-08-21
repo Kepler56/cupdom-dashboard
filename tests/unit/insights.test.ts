@@ -164,3 +164,145 @@ describe('trendInsight', () => {
   });
 });
 
+
+import { buildHeatmap } from '@/lib/analytics/heatmap';
+import { buildRanking } from '@/lib/analytics/ranking';
+import { buildFunnel } from '@/lib/analytics/funnel';
+import {
+  citiesInsight,
+  deviceInsight,
+  dropoffInsight,
+  MIN_CITIES_SHARE,
+  MIN_DEVICE_SHARE,
+  peakInsight,
+} from '@/lib/analytics/insights';
+
+describe('peakInsight', () => {
+  it('names the busiest hour and what share of the period it carried', () => {
+    // 60 scans on Saturday at 23 h, 40 spread elsewhere: the peak is 60 % of 100.
+    const insight = peakInsight(
+      buildHeatmap([
+        { dow: 6, hour: 23, scans: 60 },
+        { dow: 2, hour: 12, scans: 40 },
+      ]),
+    );
+    expect(insight?.emphasis).toBe('samedi 23 h');
+    expect(insight?.lead).toBe('Votre pic : ');
+    expect(insight?.tail).toContain('de vos scans sur la période');
+  });
+
+  it('stays silent when buildHeatmap itself refused to name a peak', () => {
+    // Below MIN_HEATMAP_VOLUME the heatmap returns peak: null. This insight
+    // must inherit that judgement rather than form its own.
+    expect(peakInsight(buildHeatmap([{ dow: 6, hour: 23, scans: 3 }]))).toBeNull();
+  });
+
+  it('stays silent on an empty window', () => {
+    expect(peakInsight(buildHeatmap([]))).toBeNull();
+  });
+});
+
+describe('citiesInsight', () => {
+  const cities = (...counts: number[]) =>
+    buildRanking(counts.map((scans, i) => ({ label: `Ville${i}`, scans })));
+
+  it('names the top three and their combined share', () => {
+    const insight = citiesInsight(buildRanking([
+      { label: 'Paris', scans: 400 },
+      { label: 'Lyon', scans: 150 },
+      { label: 'Marseille', scans: 70 },
+      { label: 'Lille', scans: 380 },
+    ]));
+    // Ranked by scans: Paris, Lille, Lyon.
+    expect(insight?.emphasis).toBe('Paris, Lille, Lyon');
+    expect(insight?.tail).toContain('de votre audience');
+  });
+
+  it('stays silent when the ranking is too thin for its own percentages', () => {
+    expect(citiesInsight(cities(5, 4, 3))).toBeNull();
+  });
+
+  it('stays silent when the top three do not actually concentrate anywhere', () => {
+    // Twelve cities of equal size: the top three hold a quarter, which is not a
+    // finding, it is a flat distribution.
+    expect(citiesInsight(cities(...Array(12).fill(50)))).toBeNull();
+  });
+
+  it('never builds the sentence out of « Inconnu »', () => {
+    // UNKNOWN_LABEL is what the RPC coalesces a missing city to. « Inconnu,
+    // Paris, Lyon = 71 % de votre audience » is a sentence about our data
+    // quality wearing the costume of a sentence about their audience.
+    const insight = citiesInsight(buildRanking([
+      { label: 'Inconnu', scans: 500 },
+      { label: 'Paris', scans: 300 },
+      { label: 'Lyon', scans: 200 },
+      { label: 'Lille', scans: 100 },
+    ]));
+    expect(insight?.emphasis).not.toContain('Inconnu');
+  });
+
+  it('needs at least two cities — one city is the geography card doing its job', () => {
+    expect(citiesInsight(buildRanking([{ label: 'Paris', scans: 500 }]))).toBeNull();
+  });
+});
+
+describe('deviceInsight', () => {
+  it('quotes the dominant system, named as the data names it', () => {
+    const insight = deviceInsight(buildRanking([
+      { label: 'iOS', scans: 870 },
+      { label: 'Android', scans: 130 },
+    ]));
+    expect(insight?.emphasis).toBe('87 %');
+    // NOT « iPhone ». See Known gaps 1.
+    expect(insight?.tail).toContain('iOS');
+    expect(insight?.tail).not.toContain('iPhone');
+  });
+
+  it('stays silent when no system dominates', () => {
+    expect(
+      deviceInsight(buildRanking([
+        { label: 'iOS', scans: 500 },
+        { label: 'Android', scans: 500 },
+      ])),
+    ).toBeNull();
+  });
+
+  it('stays silent below the ranking volume floor', () => {
+    expect(deviceInsight(buildRanking([{ label: 'iOS', scans: 9 }]))).toBeNull();
+  });
+});
+
+describe('dropoffInsight', () => {
+  const funnel = () =>
+    buildFunnel(
+      { distribues: 5000, scannes: 1000, formulaire_vu: 900, formulaire_soumis: 380, offre_atteinte: 350 },
+      { distributionComplete: true },
+    );
+
+  it(`reuses the funnel\u2019s own wording rather than inventing a second one`, () => {
+    const insight = dropoffInsight(funnel())!;
+    expect(insight.lead).toContain('Votre plus gros décrochage');
+    // The funnel names « Formulaire envoyé » as the step lost the most people.
+    expect(insight.lead.toLowerCase()).toContain('formulaire envoyé');
+    expect(insight.tail).toContain(`s\u2019arrêtent avant cette étape`);
+  });
+
+  it('scores a worse drop-off as the stronger insight', () => {
+    const bad = dropoffInsight(funnel())!;
+    const mild = dropoffInsight(
+      buildFunnel(
+        { distribues: 5000, scannes: 1000, formulaire_vu: 900, formulaire_soumis: 800, offre_atteinte: 790 },
+        { distributionComplete: true },
+      ),
+    )!;
+    expect(bad.strength).toBeGreaterThan(mild.strength);
+  });
+
+  it('stays silent when buildFunnel refused to name a worst drop', () => {
+    const thin = buildFunnel(
+      { distribues: 10, scannes: 5, formulaire_vu: 4, formulaire_soumis: 1, offre_atteinte: 1 },
+      { distributionComplete: true },
+    );
+    expect(dropoffInsight(thin)).toBeNull();
+  });
+});
