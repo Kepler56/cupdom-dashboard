@@ -257,7 +257,7 @@ export function citiesInsight(geo: Ranking): Insight | null {
 }
 
 /**
- * « 87 % de vos scans viennent d'un appareil iOS. »
+ * « 87 % de vos scans viennent d’un appareil iOS. »
  *
  * The spec writes « scannent sur iPhone ». We record an OS, and an iPad is iOS
  * too — see Known gaps 1. The label passes through exactly as `humanTechLabel`
@@ -279,13 +279,13 @@ export function deviceInsight(systems: Ranking): Insight | null {
     strength: clamp01((top.share - MIN_DEVICE_SHARE) / (1 - MIN_DEVICE_SHARE)),
     lead: '',
     emphasis: top.shareLabel,
-    tail: ` de vos scans viennent d'un appareil ${top.label}.`,
+    tail: ` de vos scans viennent d’un appareil ${top.label}.`,
   };
 }
 
 /**
  * « Votre plus gros décrochage : formulaire envoyé — 58 % des personnes
- * s'arrêtent avant cette étape. »
+ * s’arrêtent avant cette étape. »
  *
  * The wording is `buildFunnel`'s, re-split at its emphasis rather than
  * rewritten. Two phrasings of the same fact, one under the funnel chart and one
@@ -307,7 +307,7 @@ export function dropoffInsight(funnel: FunnelView): Insight | null {
     strength: clamp01(ratio),
     lead: `Votre plus gros décrochage : ${worst.label.toLowerCase()} — `,
     emphasis: worst.dropLabel,
-    tail: ` des personnes s'arrêtent avant cette étape.`,
+    tail: ` des personnes s’arrêtent avant cette étape.`,
   };
 }
 

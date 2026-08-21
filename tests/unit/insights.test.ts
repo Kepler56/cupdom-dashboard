@@ -2,16 +2,25 @@ import { describe, expect, it } from 'vitest';
 import {
   captationInsight,
   CAPTATION_RATE_FOR_FULL_STRENGTH,
+  citiesInsight,
+  deviceInsight,
+  dropoffInsight,
   MAX_CAPTATION_ROUNDING_DRIFT,
   MAX_INSIGHTS,
   MIN_CAPTATION_UNIQUES,
+  MIN_CITIES_SHARE,
+  MIN_DEVICE_SHARE,
   MIN_TREND_DELTA,
   MIN_TREND_SCANS,
+  peakInsight,
   selectInsights,
   TREND_DELTA_FOR_FULL_STRENGTH,
   trendInsight,
   type Insight,
 } from '@/lib/analytics/insights';
+import { buildFunnel } from '@/lib/analytics/funnel';
+import { buildHeatmap } from '@/lib/analytics/heatmap';
+import { buildRanking, type Ranking } from '@/lib/analytics/ranking';
 import type { OverviewRow } from '@/lib/analytics/types';
 
 const insight = (id: Insight['id'], strength: number): Insight => ({
@@ -164,19 +173,6 @@ describe('trendInsight', () => {
   });
 });
 
-
-import { buildHeatmap } from '@/lib/analytics/heatmap';
-import { buildRanking } from '@/lib/analytics/ranking';
-import { buildFunnel } from '@/lib/analytics/funnel';
-import {
-  citiesInsight,
-  deviceInsight,
-  dropoffInsight,
-  MIN_CITIES_SHARE,
-  MIN_DEVICE_SHARE,
-  peakInsight,
-} from '@/lib/analytics/insights';
-
 describe('peakInsight', () => {
   it('names the busiest hour and what share of the period it carried', () => {
     // 60 scans on Saturday at 23 h, 40 spread elsewhere: the peak is 60 % of 100.
@@ -244,6 +240,61 @@ describe('citiesInsight', () => {
   it('needs at least two cities — one city is the geography card doing its job', () => {
     expect(citiesInsight(buildRanking([{ label: 'Paris', scans: 500 }]))).toBeNull();
   });
+
+  it('never names the rolled-up « Autres » row as a place', () => {
+    // buildRanking always appends « Autres » AFTER the sorted head, so it can
+    // never reach the top three through buildRanking itself — the guard that
+    // filters it out is untestable via the pipeline. Hand-build the Ranking so
+    // the guard actually has to fire.
+    const withOther: Ranking = {
+      rows: [
+        { label: 'Autres', scans: 500, scansLabel: '500', uniques: null, uniquesLabel: null, share: 0.5, shareLabel: '50 %', isOther: true },
+        { label: 'Paris', scans: 300, scansLabel: '300', uniques: null, uniquesLabel: null, share: 0.3, shareLabel: '30 %', isOther: false },
+        { label: 'Lyon', scans: 200, scansLabel: '200', uniques: null, uniquesLabel: null, share: 0.2, shareLabel: '20 %', isOther: false },
+      ],
+      total: 1000,
+      totalLabel: '1 000',
+      empty: false,
+      enoughData: true,
+    };
+    expect(citiesInsight(withOther)!.emphasis).toBe('Paris, Lyon');
+  });
+
+  it('qualifies exactly AT the concentration floor', () => {
+    // Total 1 000, exactly reproduced as an integer division so the sum is not
+    // subject to accumulated floating-point drift: 200 + 100 + 100 scans out of
+    // 1 000 is a share of 0.2 + 0.1 + 0.1, which sums to the EXACT double for
+    // 0.4 (verified: 0.2 + 0.1 + 0.1 === 0.4 is true in IEEE-754 for this
+    // specific triple, unlike the more famous 0.1 + 0.2 !== 0.3).
+    const atFloor = citiesInsight(buildRanking([
+      { label: 'Paris', scans: 200 },
+      { label: 'Lyon', scans: 100 },
+      { label: 'Marseille', scans: 100 },
+      // Ten filler cities below the top three, summing to the remaining 600,
+      // so the ranking's total is exactly 1 000 and none of them outranks
+      // Lyon or Marseille.
+      ...Array.from({ length: 10 }, (_, i) => ({ label: `Ville${i}`, scans: 60 })),
+    ]));
+    expect(atFloor).not.toBeNull();
+    expect(atFloor!.strength).toBe(0);
+  });
+
+  it('scores a barely-qualifying concentration near zero, not near its floor', () => {
+    // Same shape as the floor fixture, but the top three clear 0.4 by exactly
+    // one point: 210 + 100 + 100 out of 1 000 is a share of 0.41 (again exact
+    // in IEEE-754 for this triple). Un-normalised, clamp01(share) would read
+    // 0.41 — nowhere near zero. Normalised against the floor,
+    // (0.41 - 0.4) / (1 - 0.4) = 0.01 / 0.6 ≈ 0.0167, which IS near zero.
+    const barelyQualifying = citiesInsight(buildRanking([
+      { label: 'Paris', scans: 210 },
+      { label: 'Lyon', scans: 100 },
+      { label: 'Marseille', scans: 100 },
+      ...Array.from({ length: 10 }, (_, i) => ({ label: `Ville${i}`, scans: 59 })),
+    ]));
+    expect(barelyQualifying).not.toBeNull();
+    expect(barelyQualifying!.strength).toBeGreaterThan(0);
+    expect(barelyQualifying!.strength).toBeLessThan(0.05);
+  });
 });
 
 describe('deviceInsight', () => {
@@ -269,6 +320,29 @@ describe('deviceInsight', () => {
 
   it('stays silent below the ranking volume floor', () => {
     expect(deviceInsight(buildRanking([{ label: 'iOS', scans: 9 }]))).toBeNull();
+  });
+
+  it('qualifies exactly AT the dominance floor', () => {
+    // 600 of 1 000 is a share of exactly 0.6 in IEEE-754 (600 / 1000 === 0.6).
+    const atFloor = deviceInsight(buildRanking([
+      { label: 'iOS', scans: 600 },
+      { label: 'Android', scans: 400 },
+    ]));
+    expect(atFloor).not.toBeNull();
+    expect(atFloor!.strength).toBe(0);
+  });
+
+  it('scores a barely-dominant system near zero, not near its floor', () => {
+    // 610 of 1 000 is a share of exactly 0.61 in IEEE-754. Un-normalised,
+    // clamp01(share) would read 0.61. Normalised, (0.61 - 0.6) / (1 - 0.6) =
+    // 0.01 / 0.4 = 0.025, which is near zero.
+    const barelyQualifying = deviceInsight(buildRanking([
+      { label: 'iOS', scans: 610 },
+      { label: 'Android', scans: 390 },
+    ]));
+    expect(barelyQualifying).not.toBeNull();
+    expect(barelyQualifying!.strength).toBeGreaterThan(0);
+    expect(barelyQualifying!.strength).toBeLessThan(0.05);
   });
 });
 
@@ -304,5 +378,11 @@ describe('dropoffInsight', () => {
       { distributionComplete: true },
     );
     expect(dropoffInsight(thin)).toBeNull();
+  });
+
+  it('reproduces the funnel’s own sentence exactly, rather than a second phrasing of it', () => {
+    const view = funnel();
+    const insight = dropoffInsight(view)!;
+    expect(insight.lead + insight.emphasis + insight.tail).toBe(view.worstDrop!.sentence);
   });
 });
