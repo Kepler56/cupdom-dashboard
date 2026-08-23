@@ -1,0 +1,42 @@
+# Netlify configuration for the Cupdom client portal (Next.js app).
+#
+# This file did not exist until 2026-08-23. Without it the portal built on
+# Netlify defaults and shipped NO security headers and NO CSP — while serving
+# authenticated sponsor analytics. It was framable (no frame-ancestors and no
+# X-Frame-Options), had no HSTS, and leaked a full referrer cross-origin.
+#
+# Mirrors cupdom/netlify.toml, with a deliberately STRICTER CSP: the portal has
+# no CDN dependency, so cdn.jsdelivr.net is not allow-listed here.
+
+[build]
+  command = "pnpm build"
+  publish = ".next"
+
+[build.environment]
+  # Matches cupdom. Netlify's default Node can move under you; pinning keeps the
+  # two apps building on the same runtime, which matters because they share a
+  # dependency set and must behave identically against the same Supabase data.
+  NODE_VERSION = "20"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+# Security headers applied to every response — the REAL enforcement, since a
+# meta-tag CSP cannot express frame-ancestors.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "geolocation=(), microphone=(), camera=(), payment=()"
+    Strict-Transport-Security = "max-age=63072000; includeSubDomains; preload"
+
+    # 'unsafe-inline' on script-src is required by Next.js, which injects inline
+    # hydration scripts; a strict policy would need per-request nonces from the
+    # framework. Everything else is as tight as the app allows:
+    #   - no cdn.jsdelivr.net (unlike the CRM) — nothing here loads from a CDN
+    #   - connect-src is limited to Supabase, the only origin this app calls
+    #   - frame-ancestors 'none' is the one that actually matters here: this is
+    #     an authenticated dashboard and must not be embeddable
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; base-uri 'self'; form-action 'self'; object-src 'none'; frame-ancestors 'none'"
