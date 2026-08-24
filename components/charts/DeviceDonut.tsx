@@ -42,7 +42,7 @@ export function DeviceDonut({ ranking }: { ranking: Ranking }) {
   }));
 
   return (
-    <div className="flex flex-wrap items-center gap-6">
+    <div className="flex flex-wrap items-center gap-4 sm:gap-6">
       <div className="h-40 w-40 shrink-0">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>

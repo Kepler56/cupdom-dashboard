@@ -16,9 +16,9 @@ export function Card({
   children: React.ReactNode;
 }) {
   return (
-    <section className={['rounded-[var(--radius-card)] border border-border bg-surface p-5', className ?? ''].join(' ')}>
+    <section className={['rounded-[var(--radius-card)] border border-border bg-surface p-4 sm:p-5', className ?? ''].join(' ')}>
       {(title || action) && (
-        <header className="mb-4 flex items-start justify-between gap-3">
+        <header className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             {title && <h2 className="font-display text-base font-bold text-ink">{title}</h2>}
             {subtitle && <p className="mt-0.5 text-xs text-text-muted">{subtitle}</p>}

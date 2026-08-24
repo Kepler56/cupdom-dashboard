@@ -113,7 +113,7 @@ describe('buildFunnel', () => {
   // that partial total as a real denominator measures every share against a
   // number wrong in the FLATTERING direction, and renders visibly broken: the
   // share clamps to 1 and « 0 % de perte à cette étape » prints between 500 and
-  // 5 200. All-or-nothing, exactly as costPerLead treats invested_amount_eur.
+  // 5 200. All-or-nothing.
   it('treats a PARTIAL distributed_count as unknown, not as a denominator', () => {
     const view = buildFunnel(
       { distribues: 500, scannes: 5200, formulaire_vu: 3000, formulaire_soumis: 1000, offre_atteinte: 800 },

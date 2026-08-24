@@ -58,8 +58,7 @@ const LABELS: Record<FunnelStageId, string> = {
  * still showed the all-time count would be silently, flatteringly wrong
  * (spec §4.9). The UI labels it « depuis le début ».
  *
- * `distributionComplete` is all-or-nothing, the same rule `costPerLead` applies
- * to `invested_amount_eur`, and for the same reason. `client_funnel` sums
+ * `distributionComplete` is all-or-nothing, and for good reason. `client_funnel` sums
  * `coalesce(distributed_count, 0)` over every campaign in scope, so a selection
  * where one campaign has a count and another does not yields a PARTIAL total —
  * 500 distribués against 5 200 scans. Measuring shares against that denominator

@@ -25,10 +25,10 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 export function CampaignHeader({ header, scanUrl }: { header: CampaignHeaderView; scanUrl: string }) {
   return (
-    <section className="flex flex-col gap-6 rounded-[var(--radius-card)] border border-border bg-surface p-6 sm:flex-row sm:items-start sm:justify-between">
+    <section className="flex flex-col gap-6 rounded-[var(--radius-card)] border border-border bg-surface p-4 sm:flex-row sm:p-6 sm:items-start sm:justify-between">
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="font-display text-2xl font-bold text-ink">{header.name}</h1>
+          <h1 className="font-display text-xl font-bold text-ink sm:text-2xl">{header.name}</h1>
           <StateBadge active={header.active} />
         </div>
 

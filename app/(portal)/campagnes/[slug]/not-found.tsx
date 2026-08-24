@@ -11,7 +11,7 @@ import { EmptyState } from '@/components/molecules/EmptyState';
  */
 export default function NotFound() {
   return (
-    <main className="flex flex-1 items-center justify-center p-6">
+    <main className="flex flex-1 items-center justify-center p-4 sm:p-6">
       <div className="flex flex-col items-center gap-4">
         <EmptyState title="Campagne introuvable">
           Cette campagne n’existe pas, ou elle ne fait pas partie des vôtres.

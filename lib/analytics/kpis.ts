@@ -1,6 +1,6 @@
-import { formatEuros, formatNumber, formatPoints, formatRate, formatSignedPercent } from './format';
+import { formatNumber, formatPoints, formatRate, formatSignedPercent } from './format';
 import type { SeriesPoint } from './series';
-import type { CampaignRow, OverviewRow } from './types';
+import type { OverviewRow } from './types';
 
 export type TrendKind = 'up' | 'down' | 'flat' | 'none';
 
@@ -57,31 +57,7 @@ export function trendLabel(trend: Trend): string | null {
   return trend.unit === 'points' ? formatPoints(trend.value) : formatSignedPercent(trend.value);
 }
 
-/**
- * Spec §4.7. Returns null meaning "do not render the tile AT ALL" — not zero,
- * not an em dash.
- *
- * Two rules, both about not misleading:
- * - Every campaign in the selection must carry an amount. An average over
- *   partial data would understate the cost, and this is the one figure that
- *   speaks finance, so it is the one most likely to be quoted back at us.
- * - Lifetime, not period. The investment is a lifetime figure; dividing it by
- *   seven days of contacts would invent a cost per contact several times too
- *   high. The tile is labelled « depuis le début » for the same reason the
- *   funnel is.
- */
-export function costPerLead(campaigns: CampaignRow[]): number | null {
-  if (campaigns.length === 0) return null;
-  if (campaigns.some((c) => c.invested_amount_eur === null || c.invested_amount_eur === undefined)) return null;
-
-  const leads = campaigns.reduce((sum, c) => sum + c.leads, 0);
-  if (leads <= 0) return null;
-
-  const invested = campaigns.reduce((sum, c) => sum + Number(c.invested_amount_eur), 0);
-  return invested / leads;
-}
-
-export type KpiId = 'touchees' | 'scans' | 'contacts' | 'captation' | 'cout';
+export type KpiId = 'touchees' | 'scans' | 'contacts' | 'captation';
 
 export interface Kpi {
   id: KpiId;
@@ -92,7 +68,7 @@ export interface Kpi {
   hint: string;
   trend: Trend;
   trendLabel: string | null;
-  /** Empty for rates and for the cost tile. */
+  /** Empty for rates. */
   sparkline: number[];
 }
 
@@ -119,16 +95,14 @@ export interface KpiInput {
   previous: OverviewRow;
   hasPrevious: boolean;
   series: SeriesPoint[];
-  /** The campaigns actually in scope — narrowed by the `?c=` filter. */
-  campaigns: CampaignRow[];
 }
 
 function tile(id: KpiId, label: string, value: string, hint: string, trend: Trend, sparkline: number[]): Kpi {
   return { id, label, value, hint, trend, trendLabel: trendLabel(trend), sparkline };
 }
 
-export function buildKpis({ current, previous, hasPrevious, series, campaigns }: KpiInput): Kpi[] {
-  const kpis: Kpi[] = [
+export function buildKpis({ current, previous, hasPrevious, series }: KpiInput): Kpi[] {
+  return [
     tile(
       'touchees',
       'Personnes touchées',
@@ -168,20 +142,4 @@ export function buildKpis({ current, previous, hasPrevious, series, campaigns }:
       [],
     ),
   ];
-
-  const cost = costPerLead(campaigns);
-  if (cost !== null) {
-    kpis.push(
-      tile(
-        'cout',
-        'Coût par contact',
-        formatEuros(cost),
-        'Depuis le début : le montant investi rapporté aux contacts captés. Affiché seulement quand le montant est renseigné pour toutes les campagnes affichées.',
-        { ...NO_TREND },
-        [],
-      ),
-    );
-  }
-
-  return kpis;
 }

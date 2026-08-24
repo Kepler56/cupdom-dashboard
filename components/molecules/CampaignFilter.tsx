@@ -30,12 +30,12 @@ export function CampaignFilter({ campaigns, current }: { campaigns: CampaignOpti
   }
 
   return (
-    <label className="inline-flex items-center gap-2">
+    <label className="inline-flex shrink-0 items-center gap-2">
       <span className="sr-only">Campagne</span>
       <select
         value={current ?? ''}
         onChange={(event) => onChange(event.target.value)}
-        className="rounded-[var(--radius-pill)] border border-border bg-surface px-3 py-1.5 text-sm text-text outline-none focus:border-ink"
+        className="max-w-[60vw] truncate rounded-[var(--radius-pill)] border border-border bg-surface px-3 py-2 text-base text-text outline-none focus:border-ink sm:max-w-none sm:py-1.5 sm:text-sm"
       >
         <option value="">Toutes les campagnes</option>
         {campaigns.map((campaign) => (

@@ -21,7 +21,7 @@ export function PeriodPicker({ current }: { current: PeriodPreset }) {
   }
 
   return (
-    <nav aria-label="Période" className="inline-flex gap-1 rounded-[var(--radius-pill)] border border-border bg-surface p-1">
+    <nav aria-label="Période" className="inline-flex shrink-0 gap-1 rounded-[var(--radius-pill)] border border-border bg-surface p-1">
       {PERIOD_PRESETS.map((preset) => {
         const active = preset.id === current;
         return (
@@ -30,7 +30,7 @@ export function PeriodPicker({ current }: { current: PeriodPreset }) {
             href={hrefFor(preset.id)}
             aria-current={active ? 'true' : undefined}
             className={[
-              'rounded-[var(--radius-pill)] px-3 py-1.5 text-sm transition-colors',
+              'whitespace-nowrap rounded-[var(--radius-pill)] px-3 py-2 text-sm transition-colors sm:py-1.5',
               active ? 'bg-signal font-medium text-ink' : 'text-text-muted hover:text-text',
             ].join(' ')}
           >

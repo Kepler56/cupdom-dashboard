@@ -22,8 +22,11 @@ export default async function PortalLayout({ children }: { children: React.React
   if (destination) redirect(destination);
 
   return (
-    <div className="flex min-h-screen">
-      <Sidebar pathname={pathname} />
+    <div className="flex min-h-dvh">
+      {/* Below `lg` the 240 px column becomes the drawer in TopBar's MobileNav. */}
+      <div className="hidden lg:flex">
+        <Sidebar pathname={pathname} />
+      </div>
       <div className="flex min-w-0 flex-1 flex-col">{children}</div>
     </div>
   );

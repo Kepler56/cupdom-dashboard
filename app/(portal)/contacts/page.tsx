@@ -33,7 +33,7 @@ export default async function ContactsPage({
     return (
       <>
         <TopBar company={company} period={period} campaigns={[]} campaign={null} />
-        <main className="flex flex-1 items-center justify-center p-6">
+        <main className="flex flex-1 items-center justify-center p-4 sm:p-6">
           {result.failure.kind === 'refused' ? <AccessDenied /> : <ErrorState message={result.failure.message} />}
         </main>
       </>
@@ -62,9 +62,9 @@ export default async function ContactsPage({
         campaign={slug}
       />
 
-      <main className="flex flex-1 flex-col gap-6 p-6">
+      <main className="flex flex-1 flex-col gap-4 p-4 sm:gap-6 sm:p-6">
         <div>
-          <h1 className="font-display text-2xl font-bold text-ink">Contacts captés</h1>
+          <h1 className="font-display text-xl font-bold text-ink sm:text-2xl">Contacts captés</h1>
           <p className="mt-1 text-sm text-text-muted">
             Les personnes qui vous ont laissé leurs coordonnées, avec leur consentement.
           </p>
@@ -78,12 +78,12 @@ export default async function ContactsPage({
               : `${formatNumber(total)} contact${total > 1 ? 's' : ''} depuis le début`
           }
           action={
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
               <SearchBox initial={query.search ?? ''} />
               {total > 0 && (
                 <a
                   href={`/contacts/export?${exportParams.toString()}`}
-                  className="inline-flex items-center gap-1.5 rounded-[var(--radius-pill)] bg-ink px-3 py-1.5 text-sm font-medium text-white"
+                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-[var(--radius-pill)] bg-ink px-4 py-2 text-sm font-medium text-white sm:min-h-0 sm:px-3 sm:py-1.5"
                 >
                   <Download size={15} aria-hidden="true" />
                   Exporter en CSV

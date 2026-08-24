@@ -45,11 +45,21 @@ export function LeadsTable({
 
   return (
     <>
-      <div className="overflow-x-auto">
+      {/*
+        The contact's name stays pinned while the rest of the row scrolls. On a
+        390 px screen the alternative — dragging a 720 px table sideways — loses
+        the one column that says WHOSE e-mail and phone you are looking at.
+        Hiding columns instead was the other option and it is the wrong one
+        here: every field in this table is a field the sponsor came for.
+      */}
+      <p className="mb-2 text-xs text-text-muted md:hidden">
+        Faites défiler le tableau horizontalement pour voir toutes les colonnes.
+      </p>
+      <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
         <table className="w-full min-w-[720px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-border">
-              <SortableHeader label="Contact" sort="nom" query={query} />
+              <SortableHeader label="Contact" sort="nom" query={query} className="sticky left-0 z-10 bg-surface" />
               <SortableHeader label="E-mail" sort="email" query={query} />
               <th scope="col" className="pb-2 pr-3 text-left text-xs font-medium uppercase tracking-wide text-text-muted">
                 Téléphone
@@ -61,7 +71,12 @@ export function LeadsTable({
           <tbody>
             {views.map((lead, index) => (
               <tr key={lead.id} className="border-b border-border/60 last:border-0">
-                <td className={['py-3 pr-3', lead.anonymised ? 'italic text-text-muted' : 'font-medium text-ink'].join(' ')}>
+                <td
+                  className={[
+                    'py-3 pr-3 sticky left-0 z-10 bg-surface',
+                    lead.anonymised ? 'italic text-text-muted' : 'font-medium text-ink',
+                  ].join(' ')}
+                >
                   {lead.name}
                 </td>
                 <td className="py-3 pr-3 text-text-body">{lead.email ?? '—'}</td>

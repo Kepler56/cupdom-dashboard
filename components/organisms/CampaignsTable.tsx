@@ -76,11 +76,15 @@ export function CampaignsTable({
           : `Totaux depuis le début. ${PERSONNES_HINT}`
       }
     >
-      <div className="overflow-x-auto">
+      {/* Campaign name pinned, same reasoning as LeadsTable. */}
+      <p className="mb-2 text-xs text-text-muted md:hidden">
+        Faites défiler le tableau horizontalement pour voir toutes les colonnes.
+      </p>
+      <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
         <table className={['w-full border-collapse text-sm', showTrend ? 'min-w-[760px]' : 'min-w-[640px]'].join(' ')}>
           <thead>
             <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-text-muted">
-              <th scope="col" className="pb-2 pr-3 font-medium">Campagne</th>
+              <th scope="col" className="sticky left-0 z-10 bg-surface pb-2 pr-3 font-medium">Campagne</th>
               <th scope="col" className="pb-2 pr-3 font-medium">État</th>
               <th scope="col" className="pb-2 pr-3 text-right font-medium">Distribués</th>
               <th scope="col" className="pb-2 pr-3 text-right font-medium">Scans</th>
@@ -95,7 +99,7 @@ export function CampaignsTable({
               const spark = sparklines?.[campaign.slug];
               return (
                 <tr key={campaign.slug} className="border-b border-border/60 last:border-0">
-                  <td className="py-3 pr-3 font-medium text-ink">
+                  <td className="sticky left-0 z-10 bg-surface py-3 pr-3 font-medium text-ink">
                     <Link
                       href={`/campagnes/${campaign.slug}?p=${period}`}
                       className="underline-offset-2 hover:underline"

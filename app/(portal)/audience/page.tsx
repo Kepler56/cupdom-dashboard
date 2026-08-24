@@ -33,7 +33,7 @@ export default async function AudiencePage({
     return (
       <>
         <TopBar company={company} period={period} campaigns={[]} campaign={null} />
-        <main className="flex flex-1 items-center justify-center p-6">
+        <main className="flex flex-1 items-center justify-center p-4 sm:p-6">
           {result.failure.kind === 'refused' ? <AccessDenied /> : <ErrorState message={result.failure.message} />}
         </main>
       </>
@@ -67,9 +67,9 @@ export default async function AudiencePage({
         campaign={slug}
       />
 
-      <main className="flex flex-1 flex-col gap-6 p-6">
+      <main className="flex flex-1 flex-col gap-4 p-4 sm:gap-6 sm:p-6">
         <div>
-          <h1 className="font-display text-2xl font-bold text-ink">Audience</h1>
+          <h1 className="font-display text-xl font-bold text-ink sm:text-2xl">Audience</h1>
           <p className="mt-1 text-sm text-text-muted">
             Qui a scanné, quand et où. Les robots sont exclus de tous les chiffres.
           </p>

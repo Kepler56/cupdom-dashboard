@@ -43,11 +43,11 @@ export function LeadsPreview({ leads, total }: { leads: LeadRow[] | null; total:
       title="Contacts captés"
       subtitle={`Les ${views.length} plus récents · ${formatNumber(total)} au total depuis le début`}
     >
-      <div className="overflow-x-auto">
+      <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
         <table className="w-full min-w-[560px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-text-muted">
-              <th scope="col" className="pb-2 pr-3 font-medium">Nom</th>
+              <th scope="col" className="sticky left-0 z-10 bg-surface pb-2 pr-3 font-medium">Nom</th>
               <th scope="col" className="pb-2 pr-3 font-medium">E-mail</th>
               <th scope="col" className="pb-2 pr-3 font-medium">Téléphone</th>
               <th scope="col" className="pb-2 font-medium">Capté le</th>
@@ -56,7 +56,7 @@ export function LeadsPreview({ leads, total }: { leads: LeadRow[] | null; total:
           <tbody>
             {views.map((lead) => (
               <tr key={lead.id} className="border-b border-border/60 last:border-0">
-                <td className={['py-3 pr-3', lead.anonymised ? 'italic text-text-muted' : 'font-medium text-ink'].join(' ')}>
+                <td className={['py-3 pr-3 sticky left-0 z-10 bg-surface', lead.anonymised ? 'italic text-text-muted' : 'font-medium text-ink'].join(' ')}>
                   {lead.name}
                 </td>
                 <td className="py-3 pr-3 text-text-body">{lead.email ?? '—'}</td>

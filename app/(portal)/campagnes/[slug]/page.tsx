@@ -48,7 +48,7 @@ export default async function CampagnePage({
     return (
       <>
         <TopBar company={company} period={period} campaigns={[]} campaign={null} showCampaignFilter={false} />
-        <main className="flex flex-1 items-center justify-center p-6">
+        <main className="flex flex-1 items-center justify-center p-4 sm:p-6">
           {result.failure.kind === 'refused' ? <AccessDenied /> : <ErrorState message={result.failure.message} />}
         </main>
       </>
@@ -60,11 +60,7 @@ export default async function CampagnePage({
   const header = buildCampaignHeader(campaign);
   const series = fillDailySeries(daily, period === 'tout' ? null : range.from, range.to);
 
-  // A single campaign, so the selection IS this campaign — which is what makes
-  // the coût-par-contact tile meaningful here: §4.7's all-or-nothing rule has
-  // exactly one campaign to satisfy, and the tile appears whenever this campaign
-  // carries an invested_amount_eur.
-  const kpis = buildKpis({ current, previous, hasPrevious: range.hasPrevious, series, campaigns: [campaign] });
+  const kpis = buildKpis({ current, previous, hasPrevious: range.hasPrevious, series });
   const note = trendNote(kpis, range.hasPrevious);
 
   const parcours = buildFunnel(funnel, {
@@ -79,7 +75,7 @@ export default async function CampagnePage({
     <>
       <TopBar company={company} period={period} campaigns={[]} campaign={null} showCampaignFilter={false} />
 
-      <main className="flex flex-1 flex-col gap-6 p-6">
+      <main className="flex flex-1 flex-col gap-4 p-4 sm:gap-6 sm:p-6">
         {/*
           `?p=` and not a bare /campagnes: the period pills are the sponsor's
           window, and a back link that drops them silently returns them to the

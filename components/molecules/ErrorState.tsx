@@ -11,7 +11,7 @@ export function ErrorState({ message }: { message: string }) {
   const router = useRouter();
 
   return (
-    <div role="alert" className="flex flex-col items-center gap-3 rounded-[var(--radius-card)] border border-border bg-surface p-8 text-center">
+    <div role="alert" className="flex flex-col items-center gap-3 rounded-[var(--radius-card)] border border-border bg-surface p-6 text-center sm:p-8">
       <p className="font-display text-base font-bold text-ink">Chargement impossible</p>
       <p className="max-w-sm text-sm text-text-muted">{message}</p>
       <button

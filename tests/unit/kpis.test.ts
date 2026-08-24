@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { buildKpis, computeRateTrend, computeTrend, costPerLead, trendNote } from '@/lib/analytics/kpis';
+import { buildKpis, computeRateTrend, computeTrend, trendNote } from '@/lib/analytics/kpis';
 import type { SeriesPoint } from '@/lib/analytics/series';
-import type { CampaignRow, OverviewRow } from '@/lib/analytics/types';
+import type { OverviewRow } from '@/lib/analytics/types';
 
 const overview = (bucket: 'current' | 'previous', scans: number, uniques: number, leads: number): OverviewRow => ({
   bucket,
@@ -22,23 +22,6 @@ const point = (day: string, scans: number, uniques: number, leads: number): Seri
   scansLabel: String(scans),
   uniquesLabel: String(uniques),
   leadsLabel: String(leads),
-});
-
-const campaign = (slug: string, over: Partial<CampaignRow> = {}): CampaignRow => ({
-  slug,
-  name: slug,
-  sponsor_name: 'Nike',
-  product: 'Couvercle',
-  destination_url: 'https://example.test',
-  active: true,
-  venue: null,
-  distributed_count: 500,
-  invested_amount_eur: null,
-  created_at: '2026-07-01T00:00:00Z',
-  scans: 100,
-  uniques: 80,
-  leads: 20,
-  ...over,
 });
 
 describe('computeTrend', () => {
@@ -85,39 +68,15 @@ describe('computeRateTrend', () => {
   });
 });
 
-describe('costPerLead', () => {
-  it('is null when a single campaign in the selection has no amount', () => {
-    expect(costPerLead([campaign('a', { invested_amount_eur: 1200 }), campaign('b')])).toBeNull();
-  });
-
-  it('divides total investment by total captured contacts when every amount is set', () => {
-    expect(
-      costPerLead([
-        campaign('a', { invested_amount_eur: 1200, leads: 300 }),
-        campaign('b', { invested_amount_eur: 1200, leads: 700 }),
-      ]),
-    ).toBeCloseTo(2.4);
-  });
-
-  it('is null when nothing has been captured yet', () => {
-    expect(costPerLead([campaign('a', { invested_amount_eur: 1200, leads: 0 })])).toBeNull();
-  });
-
-  it('is null with no campaigns at all', () => {
-    expect(costPerLead([])).toBeNull();
-  });
-});
-
 describe('buildKpis', () => {
   const base = {
     current: overview('current', 1000, 800, 200),
     previous: overview('previous', 500, 400, 50),
     hasPrevious: true,
     series: [point('2026-08-18', 400, 300, 80), point('2026-08-19', 600, 500, 120)],
-    campaigns: [campaign('a')],
   };
 
-  it('returns the four core tiles, in the spec order', () => {
+  it('returns the four tiles, in the spec order, and nothing else', () => {
     expect(buildKpis(base).map((k) => k.id)).toEqual(['touchees', 'scans', 'contacts', 'captation']);
   });
 
@@ -139,16 +98,6 @@ describe('buildKpis', () => {
     expect(kpis[2].sparkline).toEqual([80, 120]);
     // A daily rate over small denominators is noise, not a trend line.
     expect(kpis[3].sparkline).toEqual([]);
-  });
-
-  it('appends the cost tile when every campaign carries an amount', () => {
-    const kpis = buildKpis({ ...base, campaigns: [campaign('a', { invested_amount_eur: 48, leads: 20 })] });
-    expect(kpis.map((k) => k.id)).toContain('cout');
-    expect(kpis[4].value).toBe('2,40\u00A0€');
-  });
-
-  it('omits the cost tile entirely — not zero, not a dash — when an amount is missing', () => {
-    expect(buildKpis(base).map((k) => k.id)).not.toContain('cout');
   });
 
   it('drops every trend when the period has no comparable predecessor', () => {

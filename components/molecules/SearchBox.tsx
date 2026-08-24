@@ -50,7 +50,7 @@ export function SearchBox({ initial }: { initial: string }) {
   }, [value]);
 
   return (
-    <label className="relative inline-flex items-center">
+    <label className="relative flex w-full items-center sm:inline-flex sm:w-auto">
       <span className="sr-only">Rechercher un contact par nom ou e-mail</span>
       <Search size={15} aria-hidden="true" className="absolute left-3 text-text-muted" />
       <input
@@ -58,7 +58,7 @@ export function SearchBox({ initial }: { initial: string }) {
         value={value}
         onChange={(event) => setValue(event.target.value)}
         placeholder="Nom ou e-mail…"
-        className="w-64 rounded-[var(--radius-pill)] border border-border bg-surface py-1.5 pl-9 pr-3 text-sm text-text outline-none focus:border-ink"
+        className="w-full rounded-[var(--radius-pill)] border border-border bg-surface py-2 pl-9 pr-3 text-base text-text outline-none focus:border-ink sm:w-64 sm:py-1.5 sm:text-sm"
       />
     </label>
   );

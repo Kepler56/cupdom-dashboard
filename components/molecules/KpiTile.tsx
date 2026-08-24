@@ -16,7 +16,7 @@ export function KpiTile({ kpi }: { kpi: Kpi }) {
   const hintId = `kpi-${kpi.id}-hint`;
 
   return (
-    <div aria-describedby={hintId} className="rounded-[var(--radius-card)] border border-border bg-surface p-5">
+    <div aria-describedby={hintId} className="rounded-[var(--radius-card)] border border-border bg-surface p-4 sm:p-5">
       <div className="flex items-start justify-between gap-2">
         <p className="text-xs font-medium uppercase tracking-wide text-text-muted">{kpi.label}</p>
         <span title={kpi.hint} className="shrink-0 text-text-muted">
@@ -24,7 +24,7 @@ export function KpiTile({ kpi }: { kpi: Kpi }) {
         </span>
       </div>
 
-      <p className="mt-2 font-display text-3xl font-extrabold text-ink">{kpi.value}</p>
+      <p className="mt-2 font-display text-2xl font-extrabold text-ink sm:text-3xl">{kpi.value}</p>
 
       <div className="mt-3 flex items-end justify-between gap-3">
         <Trend trend={kpi.trend} label={kpi.trendLabel} />

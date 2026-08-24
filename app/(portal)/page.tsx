@@ -47,7 +47,7 @@ export default async function DashboardPage({
     return (
       <>
         <TopBar company={company} period={period} campaigns={[]} campaign={null} />
-        <main className="flex flex-1 items-center justify-center p-6">
+        <main className="flex flex-1 items-center justify-center p-4 sm:p-6">
           {result.failure.kind === 'refused' ? <AccessDenied /> : <ErrorState message={result.failure.message} />}
         </main>
       </>
@@ -57,9 +57,9 @@ export default async function DashboardPage({
   const { campaigns, slug, current, previous, daily, funnel, sparklines, hourly, geo, tech } = result.data;
 
   // The `?c=` filter means ONE thing across the whole screen. Every module below
-  // — KPIs, cost tile, chart, funnel, table — reads this one narrowed list, so a
-  // client on ?c=nike-hiver never sees one campaign's figures beside a table
-  // listing all of them.
+  // — chart, funnel, table — reads this one narrowed list, so a client on
+  // ?c=nike-hiver never sees one campaign's figures beside a table listing all
+  // of them.
   const scope = selectedCampaigns(campaigns, slug);
 
   // The `?c=` filter narrows this table like everything else on the page, so
@@ -76,16 +76,10 @@ export default async function DashboardPage({
   // only because 'tout' happens to be the one preset without a prior window, and
   // a future preset with the same property would silently truncate its series.
   const series = fillDailySeries(daily, period === 'tout' ? null : range.from, range.to);
-  const kpis = buildKpis({
-    current,
-    previous,
-    hasPrevious: range.hasPrevious,
-    series,
-    campaigns: scope,
-  });
+  const kpis = buildKpis({ current, previous, hasPrevious: range.hasPrevious, series });
   // client_funnel sums coalesce(distributed_count, 0) across the selection, so a
-  // total built from only some campaigns is a partial denominator. All-or-nothing,
-  // like the cost tile's invested_amount_eur.
+  // total built from only some campaigns is a partial denominator — hence the
+  // all-or-nothing `distributionComplete` guard below.
   const note = trendNote(kpis, range.hasPrevious);
   const parcours = buildFunnel(funnel, {
     distributionComplete: scope.length > 0 && scope.every((c) => c.distributed_count !== null && c.distributed_count > 0),
@@ -114,13 +108,13 @@ export default async function DashboardPage({
         campaign={slug}
       />
 
-      <main className="flex flex-1 flex-col gap-6 p-6">
-        <section className="trame-point rounded-[var(--radius-card)] border border-border bg-surface p-6">
+      <main className="flex flex-1 flex-col gap-4 p-4 sm:gap-6 sm:p-6">
+        <section className="trame-point rounded-[var(--radius-card)] border border-border bg-surface p-4 sm:p-6">
           <div className="flex items-center gap-2">
             <span className="text-signal">
               <Point size={16} hole="var(--surface)" />
             </span>
-            <h1 className="font-display text-2xl font-bold text-ink">Bonjour, {company}.</h1>
+            <h1 className="font-display text-xl font-bold text-ink sm:text-2xl">Bonjour, {company}.</h1>
           </div>
           {/* Spec §4.6-1. No stage-1 RPC returns a bot count, so the exclusion
               is disclosed rather than quantified. See the plan's "Known gaps". */}

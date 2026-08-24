@@ -38,8 +38,7 @@ test('le détail montre le QR, les KPI, le parcours et les contacts', async ({ p
   await expect(page.getByRole('img', { name: /QR code de la campagne : https?:\/\/.+\/s\/demo-rex-club/ })).toBeVisible();
 
   await expect(page.getByTestId('kpi-grid').getByText('Personnes touchées', { exact: true })).toBeVisible();
-  // Every demo campaign carries invested_amount_eur, so §4.7's tile must appear.
-  await expect(page.getByTestId('kpi-grid').getByText('Coût par contact', { exact: true })).toBeVisible();
+  await expect(page.getByTestId('kpi-grid').getByText('Coût par contact')).toHaveCount(0);
 
   await expect(page.getByTestId('funnel')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Contacts captés' })).toBeVisible();

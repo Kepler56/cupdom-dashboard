@@ -40,7 +40,7 @@ export default async function ComptePage({
   // someone who has none would be worse than the extra branch.
   if (!account) {
     return (
-      <main className="flex flex-1 items-center justify-center p-6">
+      <main className="flex flex-1 items-center justify-center p-4 sm:p-6">
         <AccessDenied />
       </main>
     );
@@ -66,9 +66,9 @@ export default async function ComptePage({
     <>
       <TopBar company={account.displayName ?? 'Votre compte'} period={period} campaigns={[]} campaign={null} />
 
-      <main className="flex flex-1 flex-col gap-6 p-6">
+      <main className="flex flex-1 flex-col gap-4 p-4 sm:gap-6 sm:p-6">
         <div>
-          <h1 className="font-display text-2xl font-bold text-ink">Mon compte</h1>
+          <h1 className="font-display text-xl font-bold text-ink sm:text-2xl">Mon compte</h1>
           <p className="mt-1 text-sm text-text-muted">Vos identifiants et la base légale de vos contacts.</p>
         </div>
 

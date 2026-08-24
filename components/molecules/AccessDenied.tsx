@@ -20,7 +20,7 @@ export function AccessDenied() {
   }, [router]);
 
   return (
-    <div role="alert" className="flex flex-col items-center gap-2 rounded-[var(--radius-card)] border border-border bg-surface p-8 text-center">
+    <div role="alert" className="flex flex-col items-center gap-2 rounded-[var(--radius-card)] border border-border bg-surface p-6 text-center sm:p-8">
       <p className="font-display text-base font-bold text-ink">Accès refusé</p>
       <p className="max-w-sm text-sm text-text-muted">Ce compte n’a pas accès au portail client. Reconnexion…</p>
     </div>

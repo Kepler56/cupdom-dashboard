@@ -42,7 +42,7 @@ export function ScansArea({ series }: { series: SeriesPoint[] }) {
 
   return (
     <div>
-      <div className="mb-4 inline-flex gap-1 rounded-[var(--radius-pill)] border border-border bg-canvas p-1">
+      <div className="mb-4 flex max-w-full gap-1 overflow-x-auto rounded-[var(--radius-pill)] border border-border bg-canvas p-1 sm:inline-flex">
         {METRICS.map((m) => {
           const selected = m.id === metric;
           return (
@@ -62,7 +62,7 @@ export function ScansArea({ series }: { series: SeriesPoint[] }) {
         })}
       </div>
 
-      <div className="h-64 w-full">
+      <div className="h-56 w-full sm:h-64">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={series} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
             <defs>

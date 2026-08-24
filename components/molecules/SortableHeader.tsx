@@ -19,10 +19,13 @@ export function SortableHeader({
   label,
   sort,
   query,
+  className,
 }: {
   label: string;
   sort: SortKey;
   query: LeadsQuery;
+  /** Extra classes for the `<th>` — used to pin the identifying column on small screens. */
+  className?: string;
 }) {
   const pathname = usePathname();
   const params = useSearchParams();
@@ -47,7 +50,7 @@ export function SortableHeader({
     <th
       scope="col"
       aria-sort={!active ? 'none' : query.dir === 'asc' ? 'ascending' : 'descending'}
-      className="pb-2 pr-3 text-left text-xs font-medium uppercase tracking-wide text-text-muted"
+      className={['pb-2 pr-3 text-left text-xs font-medium uppercase tracking-wide text-text-muted', className ?? ''].join(' ')}
     >
       <Link href={href()} className="inline-flex items-center gap-1 hover:text-text">
         {label}
