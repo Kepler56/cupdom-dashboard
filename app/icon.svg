@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="32" height="32">
+  <!--
+    Le point-couvercle, the Cupdom mark (charte §07) — the same disc-pierced-by-a-
+    straw-hole that components/atoms/Point.tsx draws in the UI.
+
+    On an ink tile rather than a bare mark: a browser tab paints the favicon over
+    whatever the tab strip's own colour is, and a yellow disc alone vanishes on a
+    light strip. The tile makes it read on both.
+
+    The hole is r=3 here, not Point's r=2.4. The component's own note says the hole
+    stops reading below roughly a sixth of the radius; at a 16px favicon, 2.4/11
+    lands under a pixel and the mark degrades into the plain dot the charte warns
+    about. Widened just enough to survive the smallest size.
+  -->
+  <rect width="24" height="24" rx="5" fill="#111110"/>
+  <circle cx="12" cy="12" r="8" fill="#FCC917"/>
+  <circle cx="12" cy="12" r="3" fill="#111110"/>
+</svg>
