@@ -26,7 +26,19 @@ export const CHARTE = Object.freeze({
   /** Bordure teintée chaud, dérivée du crème — jamais un gris froid. */
   border: '#E7E0D0',
   textBody: '#4A4741',
-  textMuted: '#8A8478',
+  /**
+   * Assombri depuis #8A8478 le 2026-08-28.
+   *
+   * L'ancienne valeur donnait 3,72:1 sur blanc et 3,24:1 sur crème, sous le
+   * minimum AA de 4,5:1 — et ce jeton porte la quasi-totalité du texte
+   * secondaire du portail (sous-titres de cartes, libellés de KPI, notes).
+   * Mesuré par Lighthouse sur /login, relevé TRA-A04.
+   *
+   * #6A665C garde la teinte chaude (h≈40°) et donne 5,73:1 sur blanc,
+   * 4,99:1 sur crème. Reste nettement plus clair que textBody (9,26:1) :
+   * la hiérarchie à trois niveaux tient toujours.
+   */
+  textMuted: '#6A665C',
 } as const);
 
 /**
