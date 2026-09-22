@@ -20,6 +20,13 @@ describe('isPublicRoute', () => {
   it('does NOT treat the password-change page as public — it requires a session', () => {
     expect(isPublicRoute('/mot-de-passe')).toBe(false);
   });
+
+  it('treats the password-reset landing as public — the recovery link lands with no session yet', () => {
+    // The code in the emailed link is exchanged client-side, after middleware
+    // has run, so the first request has no session cookie. A gated route would
+    // bounce it to /login and drop the code before it could be exchanged.
+    expect(isPublicRoute('/reinitialiser')).toBe(true);
+  });
 });
 
 describe('resolveRedirect', () => {
@@ -30,6 +37,18 @@ describe('resolveRedirect', () => {
 
   it('lets an anonymous visitor sit on /login', () => {
     expect(resolveRedirect(anon, '/login')).toBeNull();
+  });
+
+  it('lets an anonymous visitor onto the password-reset landing', () => {
+    // Before the recovery code is exchanged the visitor has no session; the
+    // page must load so the browser client can do the exchange.
+    expect(resolveRedirect(anon, '/reinitialiser')).toBeNull();
+  });
+
+  it('lets a recovery session (already signed in) stay on the reset page', () => {
+    // Once the code is exchanged the visitor is signed in; they must not be
+    // bounced to home before they have set the new password.
+    expect(resolveRedirect(ok, '/reinitialiser')).toBeNull();
   });
 
   it('sends a signed-in user with no portal account to /login with an explicit reason', () => {

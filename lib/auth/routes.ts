@@ -19,12 +19,21 @@ export interface AuthState {
 export const LOGIN_ROUTE = '/login';
 export const PASSWORD_ROUTE = '/mot-de-passe';
 export const HOME_ROUTE = '/';
+/**
+ * The password-reset landing. A recovery link arrives here WITHOUT a session
+ * cookie (the code in the URL is exchanged client-side, after the middleware
+ * has already run), so this route must be reachable while signed out — hence
+ * public. It is deliberately distinct from PASSWORD_ROUTE: that page is the
+ * forced first-login change and is gated behind a session; this one cannot be,
+ * or the emailed link would bounce to /login before the code is ever exchanged.
+ */
+export const RESET_ROUTE = '/reinitialiser';
 /** Login, flagged so the page can explain WHY the user was sent back (spec §5.8). */
 export const LOGIN_NO_ACCESS_ROUTE = '/login?erreur=acces';
 
-/** Only the login page is reachable without a session. */
+/** The login page and the password-reset landing are reachable without a session. */
 export function isPublicRoute(pathname: string): boolean {
-  return pathname === LOGIN_ROUTE;
+  return pathname === LOGIN_ROUTE || pathname === RESET_ROUTE;
 }
 
 /**

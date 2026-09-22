@@ -22,12 +22,38 @@ export function LoginForm({ signOutFirst = false }: { signOutFirst?: boolean }) 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  async function onForgotPassword() {
+    setError(null);
+    setNotice(null);
+
+    const clean = email.trim();
+    if (clean === '') {
+      setError("Saisissez d’abord votre adresse e-mail.");
+      return;
+    }
+
+    // The SAME neutral notice whether or not an account exists — like the login
+    // error above, a distinct "unknown address" reply would let anyone probe
+    // which sponsors hold portal accounts. resetPasswordForEmail itself never
+    // reveals that, so we only have to keep our own copy from doing so.
+    //
+    // redirectTo must be allow-listed in Supabase → Auth → URL Configuration →
+    // Redirect URLs, or the emailed link refuses to land here. /reinitialiser is
+    // the one public route that can receive the recovery session (see routes.ts).
+    await createBrowserClient().auth.resetPasswordForEmail(clean, {
+      redirectTo: `${window.location.origin}/reinitialiser`,
+    });
+    setNotice('Si un compte existe, un e-mail de réinitialisation vient d’être envoyé.');
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError(null);
+    setNotice(null);
 
     const supabase = createBrowserClient();
     const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
@@ -89,12 +115,26 @@ export function LoginForm({ signOutFirst = false }: { signOutFirst?: boolean }) 
         </p>
       )}
 
+      {notice && (
+        <p role="status" className="rounded-[var(--radius-pill)] bg-[#ECFDF3] px-4 py-2 text-sm text-[#027A48]">
+          {notice}
+        </p>
+      )}
+
       <button
         type="submit"
         disabled={busy}
         className="rounded-[var(--radius-pill)] bg-ink px-4 py-2.5 font-medium text-white disabled:opacity-60"
       >
         {busy ? 'Connexion…' : 'Se connecter'}
+      </button>
+
+      <button
+        type="button"
+        onClick={onForgotPassword}
+        className="text-center text-sm text-text-muted underline-offset-2 hover:underline"
+      >
+        Mot de passe oublié ?
       </button>
     </form>
   );

@@ -32,14 +32,17 @@ function builder() {
 }
 
 const rpc = vi.fn(builder);
+const resetPasswordForEmail = vi.fn();
 vi.mock('@/lib/supabase/client', () => ({
-  createBrowserClient: () => ({ auth: { signInWithPassword }, rpc }),
+  createBrowserClient: () => ({ auth: { signInWithPassword, resetPasswordForEmail }, rpc }),
 }));
 const replace = vi.fn();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ replace, refresh: vi.fn() }) }));
 
 beforeEach(() => {
   signInWithPassword.mockReset();
+  resetPasswordForEmail.mockReset();
+  resetPasswordForEmail.mockResolvedValue({ data: {}, error: null });
   rpc.mockReset();
   rpc.mockImplementation(builder);
   replace.mockReset();
@@ -85,8 +88,34 @@ describe('LoginForm', () => {
     await userEvent.type(screen.getByLabelText('Adresse e-mail'), 'a@b.fr');
     await userEvent.type(screen.getByLabelText('Mot de passe'), 'x');
     await userEvent.click(screen.getByRole('button', { name: /Se connecter|Connexion/ }));
-    expect(screen.getByRole('button')).toBeDisabled();
+    // The form now also carries a « Mot de passe oublié ? » button, so target the
+    // submit button by name rather than assuming it is the only one.
+    expect(screen.getByRole('button', { name: /Se connecter|Connexion/ })).toBeDisabled();
     resolve({ error: null });
+  });
+
+  it('asks for an e-mail first when « Mot de passe oublié ? » is clicked empty', async () => {
+    render(<LoginForm />);
+    await userEvent.click(screen.getByRole('button', { name: 'Mot de passe oublié ?' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Saisissez d’abord votre adresse e-mail.');
+    expect(resetPasswordForEmail).not.toHaveBeenCalled();
+  });
+
+  it('sends a reset e-mail and shows a NEUTRAL notice that never confirms the address exists', async () => {
+    render(<LoginForm />);
+    await userEvent.type(screen.getByLabelText('Adresse e-mail'), 'client@example.test');
+    await userEvent.click(screen.getByRole('button', { name: 'Mot de passe oublié ?' }));
+
+    await waitFor(() =>
+      expect(resetPasswordForEmail).toHaveBeenCalledWith(
+        'client@example.test',
+        expect.objectContaining({ redirectTo: expect.stringContaining('/reinitialiser') }),
+      ),
+    );
+    const status = await screen.findByRole('status');
+    expect(status).toHaveTextContent('Si un compte existe');
+    // The notice must not leak that the address is (or is not) a real account.
+    expect(status).not.toHaveTextContent('client@example.test');
   });
 
   it('actually SENDS client_mark_login after a successful sign-in, not just builds it', async () => {
