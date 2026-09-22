@@ -1,5 +1,6 @@
 import { BarChart3, Home, Megaphone, Settings, Users } from 'lucide-react';
 import { NavItem } from '@/components/molecules/NavItem';
+import { SignOutButton } from '@/components/molecules/SignOutButton';
 import { Point } from '@/components/atoms/Point';
 
 /**
@@ -39,6 +40,12 @@ export function Sidebar({ pathname }: { pathname: string }) {
           />
         ))}
       </nav>
+      {/* Pinned to the bottom of the rail, away from the nav links, so it is not
+          mistaken for another destination. `mt-auto` pushes it down the flex
+          column regardless of how many nav entries sit above it. */}
+      <div className="mt-auto pt-4">
+        <SignOutButton />
+      </div>
     </aside>
   );
 }
