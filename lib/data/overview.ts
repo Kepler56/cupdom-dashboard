@@ -84,7 +84,7 @@ export async function fetchOverview(args: {
   const from = args.range.from.toISOString();
   const to = args.range.to.toISOString();
 
-  const [overview, daily, funnel, hourly, geo, tech] = await Promise.all([
+  const [overview, daily, funnel, hourly, geo, tech, sparklines] = await Promise.all([
     supabase.rpc('client_overview', {
       p_from: from,
       p_to: to,
@@ -107,6 +107,15 @@ export async function fetchOverview(args: {
       p_level: levelParam(DEFAULT_GEO_LEVEL),
     }),
     supabase.rpc('client_scans_tech', { p_from: from, p_to: to, p_slug: slug }),
+    // Joined to this parallel block rather than awaited after it. It was
+    // sequential to keep it out of the failure gate below, but the gate names
+    // its three reads explicitly — [overview, daily, funnel] — so position in
+    // this array never decided that, and loadSparklines swallows its own
+    // errors regardless. Being seventh here changes nothing about what can
+    // fail the page; it only stops the request paying a THIRD serial
+    // round-trip. Netlify runs in Ohio and Supabase in eu-west-1, so that hop
+    // was a measured ~85 ms of Atlantic crossing for a decorative curve.
+    loadSparklines(supabase, args.range, args.preset, campaigns.map((c) => c.slug)),
   ]);
 
   // THREE reads in this gate, not six. See OverviewData.hourly.
@@ -124,10 +133,7 @@ export async function fetchOverview(args: {
       previous: buckets.find((b) => b.bucket === 'previous') ?? emptyBucket('previous'),
       daily: (daily.data ?? []) as DailyRow[],
       funnel: ((funnel.data ?? []) as FunnelRow[])[0] ?? EMPTY_FUNNEL,
-      // Sequential, after the three parallel reads rather than inside them:
-      // this one cannot fail the page, so it must not be able to land in the
-      // `[overview, daily, funnel].find(r => r.error)` check above.
-      sparklines: await loadSparklines(supabase, args.range, args.preset, campaigns.map((c) => c.slug)),
+      sparklines,
       hourly: optionalRows<HourlyRow>('client_scans_hourly', hourly),
       geo: optionalRows<GeoRow>('client_scans_geo', geo),
       tech: optionalRows<TechRow>('client_scans_tech', tech),
