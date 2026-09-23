@@ -1,9 +1,17 @@
 'use client';
 
-import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts';
+import dynamic from 'next/dynamic';
 import { EmptyState } from '@/components/molecules/EmptyState';
 import { CHART_SERIES } from '@/lib/charte';
 import type { Ranking } from '@/lib/analytics/ranking';
+
+// Lazy-load the recharts arc; ssr:false keeps recharts out of the initial bundle.
+// The skeleton fills the SAME fixed 40×40 box, so there is no layout shift, and
+// the legend (which carries the numbers) renders immediately.
+const DeviceDonutChart = dynamic(() => import('./DeviceDonutChart').then((m) => m.DeviceDonutChart), {
+  ssr: false,
+  loading: () => <div className="h-full w-full animate-pulse rounded-full bg-canvas" />,
+});
 
 /**
  * The one donut in the portal. Device type is the rare dimension where
@@ -44,24 +52,7 @@ export function DeviceDonut({ ranking }: { ranking: Ranking }) {
   return (
     <div className="flex flex-wrap items-center gap-4 sm:gap-6">
       <div className="h-40 w-40 shrink-0">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              data={data}
-              dataKey="value"
-              nameKey="name"
-              innerRadius="58%"
-              outerRadius="100%"
-              paddingAngle={2}
-              stroke="none"
-              isAnimationActive={false}
-            >
-              {data.map((d) => (
-                <Cell key={d.name} fill={d.colour} />
-              ))}
-            </Pie>
-          </PieChart>
-        </ResponsiveContainer>
+        <DeviceDonutChart data={data} />
       </div>
 
       <ul className="flex min-w-0 flex-1 flex-col gap-2">
