@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { Menu, X } from 'lucide-react';
 import { Sidebar } from '@/components/organisms/Sidebar';
 
@@ -19,6 +19,8 @@ import { Sidebar } from '@/components/organisms/Sidebar';
  */
 export function MobileNav() {
   const pathname = usePathname();
+  // Keep the admin client (#4) on the drawer's nav links too.
+  const client = useSearchParams().get('client');
   const [open, setOpen] = useState(false);
 
   // Close on navigation: the drawer is fixed-position, so without this it stays
@@ -62,7 +64,7 @@ export function MobileNav() {
             aria-hidden="true"
           />
           <div className="absolute inset-y-0 left-0 flex max-w-[85vw] shadow-xl">
-            <Sidebar pathname={pathname} />
+            <Sidebar pathname={pathname} client={client} />
             <button
               type="button"
               onClick={() => setOpen(false)}

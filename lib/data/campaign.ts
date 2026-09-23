@@ -90,12 +90,18 @@ export function ownedCampaign(campaigns: CampaignRow[], slug: string): CampaignR
 export async function fetchCampaign(args: {
   slug: string;
   range: PeriodRange;
+  /** Admin target (#4): the client a member is viewing. Null = own data / client. */
+  target?: string | null;
 }): Promise<CampaignResult> {
   const supabase = await createServerClient();
+  const target = args.target ?? null;
 
-  const scope = await resolveScope(supabase, undefined);
+  const scope = await resolveScope(supabase, undefined, target);
   if (!scope.ok) return scope;
 
+  // ownedCampaign narrows to the TARGET's campaigns (client_campaigns(target)),
+  // so a slug that is not the viewed client's own reads 404, and the leads read
+  // below is scoped to a campaign we have just proven belongs to that client.
   const campaign = ownedCampaign(scope.data.campaigns, args.slug);
   if (!campaign) return { ok: false, failure: { kind: 'notFound' } };
 
@@ -116,12 +122,13 @@ export async function fetchCampaign(args: {
       p_prev_from: args.range.prevFrom.toISOString(),
       p_prev_to: args.range.prevTo.toISOString(),
       p_slug: campaign.slug,
+      p_target: target,
     }),
-    supabase.rpc('client_scans_daily', { p_from: from, p_to: to, p_slug: campaign.slug }),
+    supabase.rpc('client_scans_daily', { p_from: from, p_to: to, p_slug: campaign.slug, p_target: target }),
     // No date parameters — the funnel is always campaign lifetime (spec §4.9).
-    supabase.rpc('client_funnel', { p_slug: campaign.slug }),
-    supabase.rpc('client_scans_geo', { p_from: from, p_to: to, p_slug: campaign.slug, p_level: levelParam(geoLevel) }),
-    supabase.rpc('client_scans_tech', { p_from: from, p_to: to, p_slug: campaign.slug }),
+    supabase.rpc('client_funnel', { p_slug: campaign.slug, p_target: target }),
+    supabase.rpc('client_scans_geo', { p_from: from, p_to: to, p_slug: campaign.slug, p_level: levelParam(geoLevel), p_target: target }),
+    supabase.rpc('client_scans_tech', { p_from: from, p_to: to, p_slug: campaign.slug, p_target: target }),
     fetchRecentLeads(supabase, campaign.slug),
   ]);
 

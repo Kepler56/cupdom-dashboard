@@ -17,7 +17,7 @@ import AuthLayout from '@/app/(auth)/layout';
  */
 vi.mock('next/navigation', () => ({ redirect: vi.fn() }));
 vi.mock('next/headers', () => ({ headers: vi.fn() }));
-vi.mock('@/lib/session', () => ({ getClientAccount: vi.fn() }));
+vi.mock('@/lib/session', () => ({ getClientAccount: vi.fn(), isCupdomMember: vi.fn(async () => false) }));
 vi.mock('@/lib/supabase/server', () => ({ createServerClient: vi.fn() }));
 
 function onPath(pathname: string) {

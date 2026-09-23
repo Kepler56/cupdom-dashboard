@@ -16,10 +16,11 @@ import { fillDailySeries } from '@/lib/analytics/series';
 import { groupTech } from '@/lib/analytics/tech';
 import { fetchOverview } from '@/lib/data/overview';
 import { parsePeriod, resolvePeriod } from '@/lib/period';
-import { getClientAccount } from '@/lib/session';
+import { resolveViewer } from '@/lib/data/viewer';
 import { Card } from '@/components/atoms/Card';
 import { Point } from '@/components/atoms/Point';
 import { AccessDenied } from '@/components/molecules/AccessDenied';
+import { ChooseClient } from '@/components/molecules/ChooseClient';
 import { EmptyState } from '@/components/molecules/EmptyState';
 import { ErrorState } from '@/components/molecules/ErrorState';
 import { KpiTile } from '@/components/molecules/KpiTile';
@@ -32,21 +33,33 @@ import { TopBar } from '@/components/organisms/TopBar';
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ p?: string; c?: string }>;
+  searchParams: Promise<{ p?: string; c?: string; client?: string }>;
 }) {
-  const account = await getClientAccount();
   const params = await searchParams;
+  const viewer = await resolveViewer(params.client);
   const period = parsePeriod(params.p);
   const range = resolvePeriod(period, new Date());
-  const result = await fetchOverview({ range, preset: period, rawSlug: params.c });
-  const company = account?.displayName ?? 'Votre compte';
+  const company = viewer.company;
+
+  // A member who has not picked a client yet: show the picker + a prompt, never
+  // call the fetcher (it would refuse for a null target).
+  if (viewer.needsClientChoice) {
+    return (
+      <>
+        <TopBar company={company} period={period} campaigns={[]} campaign={null} isMember clients={viewer.clients} client={null} />
+        <ChooseClient />
+      </>
+    );
+  }
+
+  const result = await fetchOverview({ range, preset: period, rawSlug: params.c, target: viewer.target });
 
   // Spec §6: a failed read is never rendered as zeros. "You have no access" and
   // "you have no data" get different screens on purpose.
   if (!result.ok) {
     return (
       <>
-        <TopBar company={company} period={period} campaigns={[]} campaign={null} />
+        <TopBar company={company} period={period} campaigns={[]} campaign={null} isMember={viewer.isMember} clients={viewer.clients} client={viewer.target} />
         <main className="flex flex-1 items-center justify-center p-4 sm:p-6">
           {result.failure.kind === 'refused' ? <AccessDenied /> : <ErrorState message={result.failure.message} />}
         </main>
@@ -106,6 +119,9 @@ export default async function DashboardPage({
         period={period}
         campaigns={campaigns.map((c) => ({ slug: c.slug, name: c.name }))}
         campaign={slug}
+        isMember={viewer.isMember}
+        clients={viewer.clients}
+        client={viewer.target}
       />
 
       <main className="flex flex-1 flex-col gap-4 p-4 sm:gap-6 sm:p-6">
@@ -155,7 +171,7 @@ export default async function DashboardPage({
           <div data-testid="funnel" className="contents">
             <FunnelBars funnel={parcours} />
           </div>
-          <CampaignsTable campaigns={scope} period={period} sparklines={scopedSparklines} />
+          <CampaignsTable campaigns={scope} period={period} sparklines={scopedSparklines} client={viewer.target} />
         </div>
       </main>
     </>

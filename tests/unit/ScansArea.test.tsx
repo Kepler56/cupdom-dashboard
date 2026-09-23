@@ -81,5 +81,8 @@ describe('ScansArea', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Contacts' }));
     expect(screen.getByRole('button', { name: 'Contacts' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: 'Scans' })).toHaveAttribute('aria-pressed', 'false');
-  });
+    // The chart is lazy-loaded (next/dynamic, ssr:false), so the click triggers
+    // an async import + recharts mount that userEvent waits through — a longer
+    // ceiling than the 5 s default, which the full suite under load can exceed.
+  }, 20000);
 });

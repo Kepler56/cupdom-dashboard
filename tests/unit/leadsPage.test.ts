@@ -10,7 +10,7 @@ import { parseLeadsQuery } from '@/lib/analytics/leadsQuery';
 function builder() {
   const calls: { method: string; args: unknown[] }[] = [];
   const self: Record<string, unknown> = {};
-  for (const m of ['select', 'eq', 'or', 'order', 'range', 'limit']) {
+  for (const m of ['select', 'in', 'eq', 'or', 'order', 'range', 'limit']) {
     self[m] = vi.fn((...args: unknown[]) => {
       calls.push({ method: m, args });
       return self;
@@ -23,10 +23,13 @@ function builder() {
 const called = (calls: { method: string; args: unknown[] }[], m: string) =>
   calls.filter((c) => c.method === m).map((c) => c.args);
 
+// The viewed client's campaigns — the allowlist that scopes the leads read.
+const ALLOWED = ['demo-rex-club', 'nike-hiver'];
+
 describe('selectLeads', () => {
   it('never selects * from a table of personal data', async () => {
     const b = builder();
-    await selectLeads(b.client as never, { query: parseLeadsQuery({}), slug: null });
+    await selectLeads(b.client as never, { query: parseLeadsQuery({}), slug: null, allowedSlugs: ALLOWED });
     const [columns] = called(b.calls, 'select')[0] as [string];
     expect(columns).not.toContain('*');
     expect(columns.split(',').map((c) => c.trim()).sort()).toEqual(
@@ -36,24 +39,45 @@ describe('selectLeads', () => {
 
   it('asks for an exact count, so pagination can be honest', async () => {
     const b = builder();
-    await selectLeads(b.client as never, { query: parseLeadsQuery({}), slug: null });
+    await selectLeads(b.client as never, { query: parseLeadsQuery({}), slug: null, allowedSlugs: ALLOWED });
     const [, options] = called(b.calls, 'select')[0] as [string, { count: string }];
     expect(options.count).toBe('exact');
   });
 
+  it('ALWAYS scopes to the allowlist — the member security boundary (#4)', async () => {
+    // For a member the `leads read members` RLS policy would expose every
+    // sponsor's contacts; this .in() is what actually confines them to the viewed
+    // client's campaigns. It fires whether or not a single campaign is filtered.
+    const b = builder();
+    await selectLeads(b.client as never, { query: parseLeadsQuery({}), slug: null, allowedSlugs: ALLOWED });
+    expect(called(b.calls, 'in')).toEqual([['campaign_slug', ALLOWED]]);
+
+    const filtered = builder();
+    await selectLeads(filtered.client as never, {
+      query: parseLeadsQuery({}),
+      slug: 'demo-rex-club',
+      allowedSlugs: ALLOWED,
+    });
+    expect(called(filtered.calls, 'in')).toEqual([['campaign_slug', ALLOWED]]);
+  });
+
   it('narrows to one campaign when the filter is set, and not otherwise', async () => {
     const withSlug = builder();
-    await selectLeads(withSlug.client as never, { query: parseLeadsQuery({}), slug: 'demo-rex-club' });
+    await selectLeads(withSlug.client as never, {
+      query: parseLeadsQuery({}),
+      slug: 'demo-rex-club',
+      allowedSlugs: ALLOWED,
+    });
     expect(called(withSlug.calls, 'eq')).toEqual([['campaign_slug', 'demo-rex-club']]);
 
     const without = builder();
-    await selectLeads(without.client as never, { query: parseLeadsQuery({}), slug: null });
+    await selectLeads(without.client as never, { query: parseLeadsQuery({}), slug: null, allowedSlugs: ALLOWED });
     expect(called(without.calls, 'eq')).toEqual([]);
   });
 
   it('applies the sanitised search across the three name/email columns', async () => {
     const b = builder();
-    await selectLeads(b.client as never, { query: parseLeadsQuery({ q: 'durand' }), slug: null });
+    await selectLeads(b.client as never, { query: parseLeadsQuery({ q: 'durand' }), slug: null, allowedSlugs: ALLOWED });
     expect(called(b.calls, 'or')).toEqual([
       ['first_name.ilike.*durand*,last_name.ilike.*durand*,email.ilike.*durand*'],
     ]);
@@ -61,7 +85,7 @@ describe('selectLeads', () => {
 
   it('does not call or() at all when there is no usable search', async () => {
     const b = builder();
-    await selectLeads(b.client as never, { query: parseLeadsQuery({ q: ',,,' }), slug: null });
+    await selectLeads(b.client as never, { query: parseLeadsQuery({ q: ',,,' }), slug: null, allowedSlugs: ALLOWED });
     expect(called(b.calls, 'or')).toEqual([]);
   });
 
@@ -71,7 +95,7 @@ describe('selectLeads', () => {
     // list on a screen of « Contact anonymisé ». nullsFirst: false, always.
     for (const tri of ['nom.asc', 'nom.desc']) {
       const b = builder();
-      await selectLeads(b.client as never, { query: parseLeadsQuery({ tri }), slug: null });
+      await selectLeads(b.client as never, { query: parseLeadsQuery({ tri }), slug: null, allowedSlugs: ALLOWED });
       const [, options] = called(b.calls, 'order')[0] as [string, { nullsFirst: boolean }];
       expect(options.nullsFirst).toBe(false);
     }
@@ -81,7 +105,7 @@ describe('selectLeads', () => {
     // Without a deterministic tiebreak, two rows with the same first_seen_at can
     // swap between requests — one shows up twice, another never.
     const b = builder();
-    await selectLeads(b.client as never, { query: parseLeadsQuery({}), slug: null });
+    await selectLeads(b.client as never, { query: parseLeadsQuery({}), slug: null, allowedSlugs: ALLOWED });
     const orders = called(b.calls, 'order');
     expect(orders).toHaveLength(2);
     expect(orders[0][0]).toBe('first_seen_at');
@@ -90,20 +114,25 @@ describe('selectLeads', () => {
 
   it('ranges to the requested page', async () => {
     const b = builder();
-    await selectLeads(b.client as never, { query: parseLeadsQuery({ page: '3' }), slug: null });
+    await selectLeads(b.client as never, { query: parseLeadsQuery({ page: '3' }), slug: null, allowedSlugs: ALLOWED });
     expect(called(b.calls, 'range')).toEqual([[100, 149]]);
   });
 
   it('takes a limit instead of a range when the caller is the export', async () => {
     const b = builder();
-    await selectLeads(b.client as never, { query: parseLeadsQuery({}), slug: null, limit: 5000 });
+    await selectLeads(b.client as never, {
+      query: parseLeadsQuery({}),
+      slug: null,
+      allowedSlugs: ALLOWED,
+      limit: 5000,
+    });
     expect(called(b.calls, 'limit')).toEqual([[5000]]);
     expect(called(b.calls, 'range')).toEqual([]);
   });
 
   it('reads the leads table, which no other assertion in this file pins', () => {
     const b = builder();
-    selectLeads(b.client as never, { query: parseLeadsQuery({}), slug: null });
+    selectLeads(b.client as never, { query: parseLeadsQuery({}), slug: null, allowedSlugs: ALLOWED });
     expect(b.client.from).toHaveBeenCalledWith('leads');
   });
 });

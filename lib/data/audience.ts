@@ -33,10 +33,13 @@ export async function fetchAudience(args: {
   range: PeriodRange;
   rawSlug: string | undefined;
   rawLevel: string | undefined;
+  /** Admin target (#4): the client a member is viewing. Null = own data / client. */
+  target?: string | null;
 }): Promise<DataResult<AudienceData>> {
   const supabase = await createServerClient();
+  const target = args.target ?? null;
 
-  const scope = await resolveScope(supabase, args.rawSlug);
+  const scope = await resolveScope(supabase, args.rawSlug, target);
   if (!scope.ok) return scope;
   const { campaigns, slug } = scope.data;
 
@@ -57,16 +60,16 @@ export async function fetchAudience(args: {
   const to = args.range.to.toISOString();
 
   const [geo, venue, hourly, tech] = await Promise.all([
-    supabase.rpc('client_scans_geo', { p_from: from, p_to: to, p_slug: slug, p_level: levelParam(level) }),
+    supabase.rpc('client_scans_geo', { p_from: from, p_to: to, p_slug: slug, p_level: levelParam(level), p_target: target }),
     // Spec §4.3-B: the venue ranking sits ABOVE geography, not instead of it, so
     // this is a second call rather than a different p_level on the first. Skipped
     // entirely when no campaign in the selection carries a venue — the RPC would
     // answer with a single « Inconnu » bar and the card is hidden anyway.
     hasVenue
-      ? supabase.rpc('client_scans_geo', { p_from: from, p_to: to, p_slug: slug, p_level: levelParam('venue') })
+      ? supabase.rpc('client_scans_geo', { p_from: from, p_to: to, p_slug: slug, p_level: levelParam('venue'), p_target: target })
       : Promise.resolve(NO_ROWS),
-    supabase.rpc('client_scans_hourly', { p_from: from, p_to: to, p_slug: slug }),
-    supabase.rpc('client_scans_tech', { p_from: from, p_to: to, p_slug: slug }),
+    supabase.rpc('client_scans_hourly', { p_from: from, p_to: to, p_slug: slug, p_target: target }),
+    supabase.rpc('client_scans_tech', { p_from: from, p_to: to, p_slug: slug, p_target: target }),
   ]);
 
   // THREE reads in this gate, not four. geo, hourly and tech ARE the page: « Où »,

@@ -5,24 +5,35 @@ import { TopBar } from '@/components/organisms/TopBar';
 import { formatNumber } from '@/lib/analytics/format';
 import { fetchCampaigns } from '@/lib/data/campaigns';
 import { parsePeriod, resolvePeriod } from '@/lib/period';
-import { getClientAccount } from '@/lib/session';
+import { resolveViewer } from '@/lib/data/viewer';
+import { ChooseClient } from '@/components/molecules/ChooseClient';
 
 export default async function CampagnesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ p?: string }>;
+  searchParams: Promise<{ p?: string; client?: string }>;
 }) {
-  const account = await getClientAccount();
   const params = await searchParams;
+  const viewer = await resolveViewer(params.client);
   const period = parsePeriod(params.p);
   const range = resolvePeriod(period, new Date());
-  const result = await fetchCampaigns({ range, preset: period });
-  const company = account?.displayName ?? 'Votre compte';
+  const company = viewer.company;
+
+  if (viewer.needsClientChoice) {
+    return (
+      <>
+        <TopBar company={company} period={period} campaigns={[]} campaign={null} showCampaignFilter={false} isMember clients={viewer.clients} client={null} />
+        <ChooseClient />
+      </>
+    );
+  }
+
+  const result = await fetchCampaigns({ range, preset: period, target: viewer.target });
 
   if (!result.ok) {
     return (
       <>
-        <TopBar company={company} period={period} campaigns={[]} campaign={null} showCampaignFilter={false} />
+        <TopBar company={company} period={period} campaigns={[]} campaign={null} showCampaignFilter={false} isMember={viewer.isMember} clients={viewer.clients} client={viewer.target} />
         <main className="flex flex-1 items-center justify-center p-4 sm:p-6">
           {result.failure.kind === 'refused' ? <AccessDenied /> : <ErrorState message={result.failure.message} />}
         </main>
@@ -35,7 +46,7 @@ export default async function CampagnesPage({
 
   return (
     <>
-      <TopBar company={company} period={period} campaigns={[]} campaign={null} showCampaignFilter={false} />
+      <TopBar company={company} period={period} campaigns={[]} campaign={null} showCampaignFilter={false} isMember={viewer.isMember} clients={viewer.clients} client={viewer.target} />
 
       <main className="flex flex-1 flex-col gap-4 p-4 sm:gap-6 sm:p-6">
         <div>
@@ -47,7 +58,7 @@ export default async function CampagnesPage({
           </p>
         </div>
 
-        <CampaignsTable campaigns={campaigns} period={period} sparklines={sparklines} title="Toutes vos campagnes" />
+        <CampaignsTable campaigns={campaigns} period={period} sparklines={sparklines} title="Toutes vos campagnes" client={viewer.target} />
       </main>
     </>
   );

@@ -74,10 +74,13 @@ export async function fetchOverview(args: {
   range: PeriodRange;
   preset: PeriodPreset;
   rawSlug: string | undefined;
+  /** Admin target (#4): the client a member is viewing. Null = own data / client. */
+  target?: string | null;
 }): Promise<DataResult<OverviewData>> {
   const supabase = await createServerClient();
+  const target = args.target ?? null;
 
-  const scope = await resolveScope(supabase, args.rawSlug);
+  const scope = await resolveScope(supabase, args.rawSlug, target);
   if (!scope.ok) return scope;
   const { campaigns, slug } = scope.data;
 
@@ -91,22 +94,24 @@ export async function fetchOverview(args: {
       p_prev_from: args.range.prevFrom.toISOString(),
       p_prev_to: args.range.prevTo.toISOString(),
       p_slug: slug,
+      p_target: target,
     }),
-    supabase.rpc('client_scans_daily', { p_from: from, p_to: to, p_slug: slug }),
+    supabase.rpc('client_scans_daily', { p_from: from, p_to: to, p_slug: slug, p_target: target }),
     // No date parameters — the funnel is always campaign lifetime (spec §4.9).
-    supabase.rpc('client_funnel', { p_slug: slug }),
+    supabase.rpc('client_funnel', { p_slug: slug, p_target: target }),
     // The three below feed « Temps forts » only. City, not country: a French
     // sponsor's country ranking is one bar reading « France », which is exactly
     // the uninformative sentence citiesInsight refuses to build. Same level the
     // audience page defaults to, through the same guard.
-    supabase.rpc('client_scans_hourly', { p_from: from, p_to: to, p_slug: slug }),
+    supabase.rpc('client_scans_hourly', { p_from: from, p_to: to, p_slug: slug, p_target: target }),
     supabase.rpc('client_scans_geo', {
       p_from: from,
       p_to: to,
       p_slug: slug,
       p_level: levelParam(DEFAULT_GEO_LEVEL),
+      p_target: target,
     }),
-    supabase.rpc('client_scans_tech', { p_from: from, p_to: to, p_slug: slug }),
+    supabase.rpc('client_scans_tech', { p_from: from, p_to: to, p_slug: slug, p_target: target }),
     // Joined to this parallel block rather than awaited after it. It was
     // sequential to keep it out of the failure gate below, but the gate names
     // its three reads explicitly — [overview, daily, funnel] — so position in
@@ -115,7 +120,7 @@ export async function fetchOverview(args: {
     // fail the page; it only stops the request paying a THIRD serial
     // round-trip. Netlify runs in Ohio and Supabase in eu-west-1, so that hop
     // was a measured ~85 ms of Atlantic crossing for a decorative curve.
-    loadSparklines(supabase, args.range, args.preset, campaigns.map((c) => c.slug)),
+    loadSparklines(supabase, args.range, args.preset, campaigns.map((c) => c.slug), target),
   ]);
 
   // THREE reads in this gate, not six. See OverviewData.hourly.

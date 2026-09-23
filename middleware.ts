@@ -5,6 +5,12 @@ import { isPublicRoute, LOGIN_ROUTE } from '@/lib/auth/routes';
 
 /** The request header carrying the pathname through to the portal layout. */
 export const PATHNAME_HEADER = 'x-pathname';
+/**
+ * The request header carrying the admin-selected client (#4) through to the
+ * portal layout, so the server-rendered Sidebar can keep `?client=` on its nav
+ * links. Set only when the URL carries it; a real client never has it.
+ */
+export const CLIENT_HEADER = 'x-client';
 
 /**
  * Session refresh + the unauthenticated redirect, nothing more.
@@ -23,9 +29,10 @@ export const PATHNAME_HEADER = 'x-pathname';
  */
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const { response, signedIn } = await updateSession(request, {
-    [PATHNAME_HEADER]: pathname,
-  });
+  const requestHeaders: Record<string, string> = { [PATHNAME_HEADER]: pathname };
+  const client = request.nextUrl.searchParams.get('client');
+  if (client) requestHeaders[CLIENT_HEADER] = client;
+  const { response, signedIn } = await updateSession(request, requestHeaders);
 
   if (!signedIn && !isPublicRoute(pathname)) {
     const url = request.nextUrl.clone();

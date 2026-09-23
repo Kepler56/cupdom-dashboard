@@ -1,4 +1,5 @@
 import { CampaignFilter, type CampaignOption } from '@/components/molecules/CampaignFilter';
+import { ClientFilter, type ClientPickerOption } from '@/components/molecules/ClientFilter';
 import { MobileNav } from '@/components/organisms/MobileNav';
 import { PeriodPicker } from '@/components/molecules/PeriodPicker';
 import type { PeriodPreset } from '@/lib/period';
@@ -9,6 +10,9 @@ export function TopBar({
   campaigns,
   campaign,
   showCampaignFilter = true,
+  isMember = false,
+  clients = [],
+  client = null,
 }: {
   company: string;
   period: PeriodPreset;
@@ -21,6 +25,10 @@ export function TopBar({
    * survive navigation between screens anyway.
    */
   showCampaignFilter?: boolean;
+  /** Admin client picker (#4). Rendered only for a Cupdom member. */
+  isMember?: boolean;
+  clients?: ClientPickerOption[];
+  client?: string | null;
 }) {
   return (
     <header className="flex flex-col gap-3 border-b border-border bg-canvas px-4 py-3 sm:px-6 sm:py-4 lg:flex-row lg:flex-wrap lg:items-center lg:justify-between">
@@ -37,6 +45,7 @@ export function TopBar({
         their focus ring being clipped by the header's own padding.
       */}
       <div className="-mx-4 flex items-center gap-2 overflow-x-auto px-4 pb-0.5 sm:-mx-6 sm:px-6 lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0">
+        {isMember && <ClientFilter clients={clients} current={client} />}
         {showCampaignFilter && <CampaignFilter campaigns={campaigns} current={campaign} />}
         <PeriodPicker current={period} />
       </div>

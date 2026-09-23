@@ -4,6 +4,7 @@ import { LEAD_CSV_COLUMNS, leadsCsvFilename } from '@/lib/export/leadsCsv';
 import { toCsv } from '@/lib/export/toCsv';
 import { selectLeads } from '@/lib/data/leadsPage';
 import { resolveScope } from '@/lib/data/scope';
+import { resolveViewer } from '@/lib/data/viewer';
 import { createServerClient } from '@/lib/supabase/server';
 
 /**
@@ -17,10 +18,15 @@ import { createServerClient } from '@/lib/supabase/server';
  * `getClientAccount` gate that guards the pages does not apply here. That is
  * fine, and it is worth being explicit about why: the layout gate is for
  * ROUTING, and the real boundary is RLS plus the RPC guards. `resolveScope`
- * calls `client_campaigns()`, which raises `insufficient_privilege` for anyone
- * who is not an active portal client, and the `leads` read is filtered by the
- * `leads read client` policy against the caller's own JWT. A CRM member hitting
- * this URL gets 403 and an empty body.
+ * calls `client_campaigns(p_target)`, which raises `insufficient_privilege` for
+ * anyone who is not an active portal client OR a member. A real client gets
+ * their own leads (RLS `leads read client`); a Cupdom MEMBER (#4) may export a
+ * client they name with `?client=<contactId>` — resolveViewer validates the id
+ * against admin_portal_clients() and the leads read below is confined to that
+ * client's campaigns by the explicit allowlist (the member RLS policy alone
+ * would not scope it). A member with no/invalid `?client` resolves to a null
+ * target, so client_campaigns(null) raises and they get 403 — they must pick a
+ * client first, exactly as on the page.
  *
  * NOTHING derived from a row may be logged here — not a count with a name, not
  * an error containing a value. Code and message only.
@@ -29,7 +35,8 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const supabase = await createServerClient();
 
-  const scope = await resolveScope(supabase, url.searchParams.get('c') ?? undefined);
+  const viewer = await resolveViewer(url.searchParams.get('client') ?? undefined);
+  const scope = await resolveScope(supabase, url.searchParams.get('c') ?? undefined, viewer.target);
   if (!scope.ok) {
     const refused = scope.failure.kind === 'refused';
     return new Response(refused ? 'Accès refusé.' : 'Export impossible pour le moment.', {
@@ -48,6 +55,7 @@ export async function GET(request: Request) {
   const { data, error } = await selectLeads(supabase, {
     query,
     slug: scope.data.slug,
+    allowedSlugs: scope.data.campaigns.map((c) => c.slug),
     limit: EXPORT_MAX_ROWS,
   });
 

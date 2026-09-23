@@ -15,24 +15,35 @@ import { groupTech, TECH_SECTIONS } from '@/lib/analytics/tech';
 import { CHARTE } from '@/lib/charte';
 import { fetchAudience } from '@/lib/data/audience';
 import { parsePeriod, resolvePeriod } from '@/lib/period';
-import { getClientAccount } from '@/lib/session';
+import { resolveViewer } from '@/lib/data/viewer';
+import { ChooseClient } from '@/components/molecules/ChooseClient';
 
 export default async function AudiencePage({
   searchParams,
 }: {
-  searchParams: Promise<{ p?: string; c?: string; geo?: string }>;
+  searchParams: Promise<{ p?: string; c?: string; geo?: string; client?: string }>;
 }) {
-  const account = await getClientAccount();
   const params = await searchParams;
+  const viewer = await resolveViewer(params.client);
   const period = parsePeriod(params.p);
   const range = resolvePeriod(period, new Date());
-  const result = await fetchAudience({ range, rawSlug: params.c, rawLevel: params.geo });
-  const company = account?.displayName ?? 'Votre compte';
+  const company = viewer.company;
+
+  if (viewer.needsClientChoice) {
+    return (
+      <>
+        <TopBar company={company} period={period} campaigns={[]} campaign={null} isMember clients={viewer.clients} client={null} />
+        <ChooseClient />
+      </>
+    );
+  }
+
+  const result = await fetchAudience({ range, rawSlug: params.c, rawLevel: params.geo, target: viewer.target });
 
   if (!result.ok) {
     return (
       <>
-        <TopBar company={company} period={period} campaigns={[]} campaign={null} />
+        <TopBar company={company} period={period} campaigns={[]} campaign={null} isMember={viewer.isMember} clients={viewer.clients} client={viewer.target} />
         <main className="flex flex-1 items-center justify-center p-4 sm:p-6">
           {result.failure.kind === 'refused' ? <AccessDenied /> : <ErrorState message={result.failure.message} />}
         </main>
@@ -65,6 +76,9 @@ export default async function AudiencePage({
         period={period}
         campaigns={campaigns.map((c) => ({ slug: c.slug, name: c.name }))}
         campaign={slug}
+        isMember={viewer.isMember}
+        clients={viewer.clients}
+        client={viewer.target}
       />
 
       <main className="flex flex-1 flex-col gap-4 p-4 sm:gap-6 sm:p-6">

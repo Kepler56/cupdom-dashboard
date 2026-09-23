@@ -19,7 +19,7 @@ const { fetchLeadsPage } = await import('@/lib/data/leadsPage');
  */
 function builder(result: { data: unknown; count: number | null; error: unknown }) {
   const self: Record<string, unknown> = {};
-  for (const m of ['select', 'eq', 'or', 'order', 'range', 'limit']) {
+  for (const m of ['select', 'in', 'eq', 'or', 'order', 'range', 'limit']) {
     self[m] = vi.fn(() => self);
   }
   self.then = (resolve: (v: unknown) => unknown) => resolve(result);

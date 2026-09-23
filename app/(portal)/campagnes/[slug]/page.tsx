@@ -23,22 +23,33 @@ import { CHARTE } from '@/lib/charte';
 import { fetchCampaign } from '@/lib/data/campaign';
 import { parsePeriod, resolvePeriod } from '@/lib/period';
 import { scanUrl } from '@/lib/qr';
-import { getClientAccount } from '@/lib/session';
+import { resolveViewer } from '@/lib/data/viewer';
+import { ChooseClient } from '@/components/molecules/ChooseClient';
 
 export default async function CampagnePage({
   params,
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ p?: string }>;
+  searchParams: Promise<{ p?: string; client?: string }>;
 }) {
-  const account = await getClientAccount();
   const { slug } = await params;
   const query = await searchParams;
+  const viewer = await resolveViewer(query.client);
   const period = parsePeriod(query.p);
   const range = resolvePeriod(period, new Date());
-  const result = await fetchCampaign({ slug, range });
-  const company = account?.displayName ?? 'Votre compte';
+  const company = viewer.company;
+
+  if (viewer.needsClientChoice) {
+    return (
+      <>
+        <TopBar company={company} period={period} campaigns={[]} campaign={null} showCampaignFilter={false} isMember clients={viewer.clients} client={null} />
+        <ChooseClient />
+      </>
+    );
+  }
+
+  const result = await fetchCampaign({ slug, range, target: viewer.target });
 
   if (!result.ok) {
     // 404 first: it is the only failure that is not an error. notFound() throws,
@@ -47,7 +58,7 @@ export default async function CampagnePage({
 
     return (
       <>
-        <TopBar company={company} period={period} campaigns={[]} campaign={null} showCampaignFilter={false} />
+        <TopBar company={company} period={period} campaigns={[]} campaign={null} showCampaignFilter={false} isMember={viewer.isMember} clients={viewer.clients} client={viewer.target} />
         <main className="flex flex-1 items-center justify-center p-4 sm:p-6">
           {result.failure.kind === 'refused' ? <AccessDenied /> : <ErrorState message={result.failure.message} />}
         </main>
@@ -73,7 +84,7 @@ export default async function CampagnePage({
 
   return (
     <>
-      <TopBar company={company} period={period} campaigns={[]} campaign={null} showCampaignFilter={false} />
+      <TopBar company={company} period={period} campaigns={[]} campaign={null} showCampaignFilter={false} isMember={viewer.isMember} clients={viewer.clients} client={viewer.target} />
 
       <main className="flex flex-1 flex-col gap-4 p-4 sm:gap-6 sm:p-6">
         {/*
@@ -84,7 +95,7 @@ export default async function CampagnePage({
           (see CampaignsTable), so the round trip preserves it.
         */}
         <Link
-          href={`/campagnes?p=${period}`}
+          href={`/campagnes?p=${period}${viewer.target ? `&client=${viewer.target}` : ''}`}
           className="inline-flex w-fit items-center gap-1.5 text-sm text-text-muted hover:text-text"
         >
           <ArrowLeft size={15} aria-hidden="true" />

@@ -22,8 +22,11 @@ export interface ConsentRow {
  * more expensive thing to imply. Same mechanism, opposite visibility, and that
  * is the deliberate part.
  */
-export async function loadConsents(supabase: SupabaseServerClient): Promise<ConsentRow[] | null> {
-  const { data, error } = await supabase.rpc('client_lead_consents');
+export async function loadConsents(
+  supabase: SupabaseServerClient,
+  target: string | null = null,
+): Promise<ConsentRow[] | null> {
+  const { data, error } = await supabase.rpc('client_lead_consents', { p_target: target });
 
   if (error) {
     // Code and message only. This function touches a table of consent records;

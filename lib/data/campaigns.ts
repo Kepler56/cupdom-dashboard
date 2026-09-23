@@ -38,12 +38,14 @@ export async function loadSparklines(
   range: PeriodRange,
   preset: PeriodPreset,
   slugs: string[],
+  target: string | null = null,
 ): Promise<Record<string, CampaignSparkline>> {
   if (slugs.length === 0) return {};
 
   const { data, error } = await supabase.rpc('client_campaigns_daily', {
     p_from: range.from.toISOString(),
     p_to: range.to.toISOString(),
+    p_target: target,
   });
 
   if (error) {
@@ -82,10 +84,13 @@ export async function loadSparklines(
 export async function fetchCampaigns(args: {
   range: PeriodRange;
   preset: PeriodPreset;
+  /** Admin target (#4): the client a member is viewing. Null = own data / client. */
+  target?: string | null;
 }): Promise<DataResult<CampaignsData>> {
   const supabase = await createServerClient();
+  const target = args.target ?? null;
 
-  const scope = await resolveScope(supabase, undefined);
+  const scope = await resolveScope(supabase, undefined, target);
   if (!scope.ok) return scope;
 
   const campaigns = byNewestFirst(scope.data.campaigns);
@@ -94,7 +99,7 @@ export async function fetchCampaigns(args: {
     ok: true,
     data: {
       campaigns,
-      sparklines: await loadSparklines(supabase, args.range, args.preset, campaigns.map((c) => c.slug)),
+      sparklines: await loadSparklines(supabase, args.range, args.preset, campaigns.map((c) => c.slug), target),
     },
   };
 }

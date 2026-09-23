@@ -40,6 +40,7 @@ export function CampaignsTable({
   period,
   sparklines,
   title = 'Vos campagnes',
+  client = null,
 }: {
   campaigns: CampaignRow[];
   /**
@@ -54,6 +55,9 @@ export function CampaignsTable({
   period: PeriodPreset;
   sparklines?: Record<string, CampaignSparkline>;
   title?: string;
+  /** The admin-selected client (#4), carried into each detail link so a member
+   *  keeps their client context when they open a campaign. Null for a client. */
+  client?: string | null;
 }) {
   if (campaigns.length === 0) {
     return (
@@ -101,7 +105,7 @@ export function CampaignsTable({
                 <tr key={campaign.slug} className="border-b border-border/60 last:border-0">
                   <td className="sticky left-0 z-10 bg-surface py-3 pr-3 font-medium text-ink">
                     <Link
-                      href={`/campagnes/${campaign.slug}?p=${period}`}
+                      href={`/campagnes/${campaign.slug}?p=${period}${client ? `&client=${client}` : ''}`}
                       className="underline-offset-2 hover:underline"
                     >
                       {campaign.name}

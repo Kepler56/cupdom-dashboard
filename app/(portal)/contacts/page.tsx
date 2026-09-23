@@ -10,29 +10,40 @@ import { EXPORT_MAX_ROWS } from '@/lib/analytics/leadsQuery';
 import { formatNumber } from '@/lib/analytics/format';
 import { loadConsents } from '@/lib/data/consent';
 import { fetchLeadsPage } from '@/lib/data/leadsPage';
+import { resolveViewer } from '@/lib/data/viewer';
 import { parsePeriod } from '@/lib/period';
-import { getClientAccount } from '@/lib/session';
+import { ChooseClient } from '@/components/molecules/ChooseClient';
 import { createServerClient } from '@/lib/supabase/server';
 import { Download } from 'lucide-react';
 
 export default async function ContactsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ p?: string; c?: string; tri?: string; q?: string; page?: string }>;
+  searchParams: Promise<{ p?: string; c?: string; tri?: string; q?: string; page?: string; client?: string }>;
 }) {
-  const account = await getClientAccount();
   const params = await searchParams;
+  const viewer = await resolveViewer(params.client);
   // The period pills do not govern this page — a captured contact is a fact with
   // a date, not a figure over a window — but TopBar renders them, so the value
   // is read to keep the control consistent and the URL intact across navigation.
   const period = parsePeriod(params.p);
-  const result = await fetchLeadsPage({ rawSlug: params.c, params });
-  const company = account?.displayName ?? 'Votre compte';
+  const company = viewer.company;
+
+  if (viewer.needsClientChoice) {
+    return (
+      <>
+        <TopBar company={company} period={period} campaigns={[]} campaign={null} isMember clients={viewer.clients} client={null} />
+        <ChooseClient />
+      </>
+    );
+  }
+
+  const result = await fetchLeadsPage({ rawSlug: params.c, params, target: viewer.target });
 
   if (!result.ok) {
     return (
       <>
-        <TopBar company={company} period={period} campaigns={[]} campaign={null} />
+        <TopBar company={company} period={period} campaigns={[]} campaign={null} isMember={viewer.isMember} clients={viewer.clients} client={viewer.target} />
         <main className="flex flex-1 items-center justify-center p-4 sm:p-6">
           {result.failure.kind === 'refused' ? <AccessDenied /> : <ErrorState message={result.failure.message} />}
         </main>
@@ -45,12 +56,14 @@ export default async function ContactsPage({
   // Sequential, after the page's own read: this cannot fail the screen, and the
   // panel renders its own failure state. Same reasoning as loadSparklines, with
   // the opposite visibility — see lib/data/consent.ts.
-  const consents = await loadConsents(await createServerClient());
+  const consents = await loadConsents(await createServerClient(), viewer.target);
 
   const exportParams = new URLSearchParams();
   if (slug) exportParams.set('c', slug);
   if (query.search) exportParams.set('q', query.search);
   exportParams.set('tri', `${query.sort}.${query.dir}`);
+  // Carry the selected client so the CSV route scopes the export to them (#4).
+  if (viewer.target) exportParams.set('client', viewer.target);
   const truncated = total > EXPORT_MAX_ROWS;
 
   return (
@@ -60,6 +73,9 @@ export default async function ContactsPage({
         period={period}
         campaigns={campaigns.map((c) => ({ slug: c.slug, name: c.name }))}
         campaign={slug}
+        isMember={viewer.isMember}
+        clients={viewer.clients}
+        client={viewer.target}
       />
 
       <main className="flex flex-1 flex-col gap-4 p-4 sm:gap-6 sm:p-6">

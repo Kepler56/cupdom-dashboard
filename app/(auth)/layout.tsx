@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
 import { Point } from '@/components/atoms/Point';
 import { createServerClient } from '@/lib/supabase/server';
-import { getClientAccount } from '@/lib/session';
+import { getClientAccount, isCupdomMember } from '@/lib/session';
 import { LOGIN_ROUTE, resolveRedirect } from '@/lib/auth/routes';
 
 /**
@@ -32,12 +32,16 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
   // Same header the portal layout reads; middleware forwards it on every request.
   const pathname = (await headers()).get('x-pathname') ?? LOGIN_ROUTE;
   const account = user ? await getClientAccount() : null;
+  // A signed-in Cupdom member (#4) has no client account but must be sent to the
+  // portal from the auth pages, not left sitting on /login.
+  const member = user ? await isCupdomMember() : false;
 
   const destination = resolveRedirect(
     {
       signedIn: user !== null,
       hasActiveAccount: account !== null,
       mustChangePassword: account?.mustChangePassword ?? false,
+      isMember: member,
     },
     pathname,
   );

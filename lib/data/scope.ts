@@ -22,8 +22,13 @@ export interface Scope {
 export async function resolveScope(
   supabase: SupabaseServerClient,
   rawSlug: string | undefined,
+  // The admin target (#4): the contact whose campaigns to load. Null for a real
+  // client (the SQL falls back to their own contact) and for a member's own
+  // (impossible) case. `client_campaigns(p_target)` discards it for non-members,
+  // so passing it can never widen a client's scope.
+  target: string | null = null,
 ): Promise<DataResult<Scope>> {
-  const response = await supabase.rpc('client_campaigns');
+  const response = await supabase.rpc('client_campaigns', { p_target: target });
   if (response.error) {
     return { ok: false, failure: classifyPostgrestError(response.error) };
   }

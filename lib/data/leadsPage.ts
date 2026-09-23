@@ -22,12 +22,20 @@ const COLUMNS = 'id, campaign_slug, first_name, last_name, email, phone, first_s
  */
 export function selectLeads(
   supabase: SupabaseServerClient,
-  args: { query: LeadsQuery; slug: string | null; limit?: number },
+  args: { query: LeadsQuery; slug: string | null; allowedSlugs: string[]; limit?: number },
 ) {
   let q = supabase.from('leads').select(COLUMNS, { count: 'exact' });
 
-  // RLS already restricts this to the caller's own campaigns; this narrows to
-  // the ONE they filtered to.
+  // ALWAYS scope to the viewed client's campaigns. For a real client this is
+  // belt-and-braces (the `leads read client` RLS policy already restricts them),
+  // but for a Cupdom MEMBER it is the actual boundary: the `leads read members`
+  // policy lets a member read EVERY sponsor's leads, so without this a member
+  // viewing "all campaigns" would see every sponsor's contacts. The allowlist is
+  // the target client's campaign slugs (from client_campaigns(p_target)); an
+  // empty list yields zero rows, which is the correct "nothing to show" state.
+  q = q.in('campaign_slug', args.allowedSlugs);
+
+  // Narrow further to the ONE campaign they filtered to, when set.
   if (args.slug) q = q.eq('campaign_slug', args.slug);
   if (args.query.search) q = q.or(searchFilter(args.query.search));
 
@@ -57,15 +65,22 @@ export interface LeadsPageData {
 export async function fetchLeadsPage(args: {
   rawSlug: string | undefined;
   params: { tri?: string; q?: string; page?: string };
+  /** Admin target (#4): the client a member is viewing. Null = own data / client. */
+  target?: string | null;
 }): Promise<DataResult<LeadsPageData>> {
   const supabase = await createServerClient();
+  const target = args.target ?? null;
 
-  const scope = await resolveScope(supabase, args.rawSlug);
+  const scope = await resolveScope(supabase, args.rawSlug, target);
   if (!scope.ok) return scope;
   const { campaigns, slug } = scope.data;
 
   const query = parseLeadsQuery(args.params);
-  const { data, count, error } = await selectLeads(supabase, { query, slug });
+  const { data, count, error } = await selectLeads(supabase, {
+    query,
+    slug,
+    allowedSlugs: campaigns.map((c) => c.slug),
+  });
 
   if (error) return { ok: false, failure: classifyPostgrestError(error) };
 

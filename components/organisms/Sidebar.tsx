@@ -22,7 +22,7 @@ export const NAV = [
   { href: '/compte', label: 'Mon compte', icon: Settings },
 ];
 
-export function Sidebar({ pathname }: { pathname: string }) {
+export function Sidebar({ pathname, client = null }: { pathname: string; client?: string | null }) {
   return (
     <aside className="flex w-60 shrink-0 flex-col bg-ink p-4">
       <div className="mb-8 flex items-baseline gap-1.5 px-3 pt-2">
@@ -33,7 +33,10 @@ export function Sidebar({ pathname }: { pathname: string }) {
         {NAV.map((item) => (
           <NavItem
             key={item.href}
-            href={item.href}
+            // Carry the admin-selected client (#4) across section navigation so a
+            // member does not fall back to « choisir un client » on every click.
+            // Active state stays keyed on the base href, not the query.
+            href={client ? `${item.href}?client=${client}` : item.href}
             label={item.label}
             icon={item.icon}
             active={item.href === '/' ? pathname === '/' : pathname.startsWith(item.href)}
