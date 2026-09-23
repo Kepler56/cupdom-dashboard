@@ -10,6 +10,7 @@ const header: CampaignHeaderView = {
   venue: 'Rex Club',
   destination: { href: 'https://demo-nightlife.test/rex?utm_source=cupdom', host: 'demo-nightlife.test' },
   createdLabel: '17 mai 2026',
+  productImage: null,
 };
 
 const url = 'https://cupdom.fr/s/demo-rex-club';
@@ -49,5 +50,22 @@ describe('CampaignHeader', () => {
   it('carries the state as a badge', () => {
     render(<CampaignHeader header={{ ...header, active: false }} scanUrl={url} />);
     expect(screen.getByText('Inactive')).toBeInTheDocument();
+  });
+
+  it('renders the product photo when the CRM set one (#8)', () => {
+    render(
+      <CampaignHeader
+        header={{ ...header, productImage: 'https://uqkbvwyspeqwlbulgzkj.supabase.co/storage/v1/object/public/sponsor-media/products/rex/p.jpg' }}
+        scanUrl={url}
+      />,
+    );
+    const photo = screen.getByRole('img', { name: 'Photo du produit — Rex Club — Été' });
+    expect(photo).toHaveAttribute('src', expect.stringContaining('/sponsor-media/products/rex/p.jpg'));
+  });
+
+  it('shows NO product image when none is set — a real no-photo layout, not a broken frame', () => {
+    render(<CampaignHeader header={{ ...header, productImage: null }} scanUrl={url} />);
+    // The only image on the header is then the QR; no product photo alt appears.
+    expect(screen.queryByRole('img', { name: /Photo du produit/ })).not.toBeInTheDocument();
   });
 });

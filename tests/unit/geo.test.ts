@@ -16,6 +16,7 @@ const campaign = (venue: string | null): CampaignRow => ({
   scans: 0,
   uniques: 0,
   leads: 0,
+  product_image_url: null,
 });
 
 describe('venueAvailable', () => {

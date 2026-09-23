@@ -45,7 +45,10 @@ export function buildCsp(isDev: boolean): string {
     // per-request nonces from the framework.
     `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`,
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data:",
+    // Supabase Storage origin added for product photos + sponsor logos (#8). Keep
+    // in sync with netlify.toml's CSP — a browser intersects the two headers and
+    // takes the strictest, so a widening here that is missing there is blocked.
+    "img-src 'self' data: https://uqkbvwyspeqwlbulgzkj.supabase.co",
     "font-src 'self' data:",
     "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
     "base-uri 'self'",

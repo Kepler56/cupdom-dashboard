@@ -51,7 +51,24 @@ export function CampaignHeader({ header, scanUrl }: { header: CampaignHeaderView
         </dl>
       </div>
 
-      <div className="flex flex-col items-center gap-2 sm:items-end">
+      <div className="flex flex-col items-center gap-3 sm:items-end">
+        {/* The product photo, when the CRM set one. A distinct framed block so it
+            is never mistaken for the QR — the QR answers « is this my code? », the
+            photo answers « on what object is it printed? ». Rendered with a plain
+            <img> (the CSP authorises the Supabase origin), object-contain on a
+            neutral tile so a non-square shot is not cropped, and explicit
+            dimensions so it reserves its space. Absent = nothing, matching the
+            header's « omit when absent » rule. */}
+        {header.productImage && (
+          <img
+            src={header.productImage}
+            alt={`Photo du produit — ${header.name}`}
+            width={144}
+            height={144}
+            loading="lazy"
+            className="h-36 w-36 rounded-[var(--radius-card)] border border-border bg-canvas object-contain"
+          />
+        )}
         <QrPreview url={scanUrl} />
         <p className="break-all font-mono text-[11px] text-text-muted sm:text-right">{scanUrl}</p>
       </div>

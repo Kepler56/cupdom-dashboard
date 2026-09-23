@@ -40,6 +40,29 @@ export interface CampaignHeaderView {
   destination: DestinationView | null;
   /** « 17 mai 2026 », or null when created_at is unusable. */
   createdLabel: string | null;
+  /** Absolute http(s) URL of the product photo, or null. Validated like the destination. */
+  productImage: string | null;
+}
+
+/**
+ * The product photo URL, safe to put in an `<img src>`.
+ *
+ * Like destinationView, the value is CRM-set free text that ends up in markup a
+ * CLIENT loads, so the scheme is allowlisted rather than trusted: only http/https
+ * pass, so a `javascript:`/`data:` value can never reach the image tag. Anything
+ * unparseable becomes null and the fiche renders its real no-photo layout. The
+ * CSP (widened to the Supabase origin) is the second line of defence on where the
+ * image may actually load from.
+ */
+export function productImageUrl(raw: string | null | undefined): string | null {
+  const text = (raw ?? '').trim();
+  if (!text) return null;
+  try {
+    const url = new URL(text);
+    return url.protocol === 'http:' || url.protocol === 'https:' ? text : null;
+  } catch {
+    return null;
+  }
 }
 
 const trimmed = (value: string | null | undefined): string | null => {
@@ -67,5 +90,6 @@ export function buildCampaignHeader(campaign: CampaignRow): CampaignHeaderView {
     venue: trimmed(campaign.venue),
     destination: destinationView(campaign.destination_url),
     createdLabel,
+    productImage: productImageUrl(campaign.product_image_url),
   };
 }

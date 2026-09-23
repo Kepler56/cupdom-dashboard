@@ -2,8 +2,10 @@ import { AccountPasswordForm } from '@/components/auth/AccountPasswordForm';
 import { Card } from '@/components/atoms/Card';
 import { AccessDenied } from '@/components/molecules/AccessDenied';
 import { ConsentPanel } from '@/components/organisms/ConsentPanel';
+import { LogoUpload } from '@/components/organisms/LogoUpload';
 import { TopBar } from '@/components/organisms/TopBar';
 import { loadConsents } from '@/lib/data/consent';
+import { loadClientProfile } from '@/lib/data/clientProfile';
 import { parsePeriod } from '@/lib/period';
 import { getClientAccount } from '@/lib/session';
 import { createServerClient } from '@/lib/supabase/server';
@@ -61,6 +63,7 @@ export default async function ComptePage({
   const authEmail = user?.email ?? account.email;
 
   const consents = await loadConsents(supabase);
+  const profile = await loadClientProfile(supabase);
 
   return (
     <>
@@ -86,6 +89,10 @@ export default async function ComptePage({
           <p className="mt-4 text-xs text-text-muted">
             Pour corriger ces informations, écrivez à votre contact Cupdom — elles sont gérées de notre côté.
           </p>
+        </Card>
+
+        <Card title="Votre logo" subtitle="Affiché sur votre fiche produit et vos campagnes">
+          <LogoUpload contactId={profile?.contactId ?? account.contactId} current={profile?.sponsorLogoUrl ?? null} />
         </Card>
 
         <Card title="Mot de passe" subtitle="Choisissez-en un nouveau quand vous voulez">

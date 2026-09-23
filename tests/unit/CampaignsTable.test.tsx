@@ -18,6 +18,7 @@ const campaign = (over: Partial<CampaignRow> = {}): CampaignRow => ({
   scans: 1200,
   uniques: 800,
   leads: 200,
+  product_image_url: null,
   ...over,
 });
 

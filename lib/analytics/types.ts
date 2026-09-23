@@ -63,6 +63,8 @@ export interface CampaignRow {
   scans: number;
   uniques: number;
   leads: number;
+  /** Optional absolute URL of a product photo (migration 0017). CRM-set, read-only. Null = none. */
+  product_image_url: string | null;
 }
 
 /**

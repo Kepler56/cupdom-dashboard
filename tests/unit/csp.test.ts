@@ -29,6 +29,14 @@ describe('Content-Security-Policy', () => {
     }
   });
 
+  it('allows images from the Supabase Storage origin, for product photos + logos (#8)', () => {
+    // Guards against an accidental narrowing that would silently break the fiche.
+    for (const csp of [buildCsp(true), buildCsp(false)]) {
+      const imgSrc = csp.split('; ').find((d) => d.startsWith('img-src'));
+      expect(imgSrc).toContain('https://uqkbvwyspeqwlbulgzkj.supabase.co');
+    }
+  });
+
   // netlify.toml carries an identical copy for anything served outside the Next handler.
   // A browser intersects multiple CSP headers and takes the strictest, so drift between
   // the two silently tightens production. It serves production traffic only, so this also

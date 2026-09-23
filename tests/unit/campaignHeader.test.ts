@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildCampaignHeader, destinationView } from '@/lib/analytics/campaign';
+import { buildCampaignHeader, destinationView, productImageUrl } from '@/lib/analytics/campaign';
 import type { CampaignRow } from '@/lib/analytics/types';
 
 const base: CampaignRow = {
@@ -16,6 +16,7 @@ const base: CampaignRow = {
   scans: 1200,
   uniques: 900,
   leads: 210,
+  product_image_url: null,
 };
 
 describe('destinationView', () => {
@@ -67,5 +68,32 @@ describe('buildCampaignHeader', () => {
     expect(header.active).toBe(true);
     expect(header.venue).toBe('Rex Club');
     expect(header.destination?.host).toBe('demo-nightlife.test');
+  });
+
+  it('carries a validated product image URL (#8)', () => {
+    const withPhoto = buildCampaignHeader({ ...base, product_image_url: 'https://cdn.test/p.jpg' });
+    expect(withPhoto.productImage).toBe('https://cdn.test/p.jpg');
+    const without = buildCampaignHeader({ ...base, product_image_url: null });
+    expect(without.productImage).toBeNull();
+  });
+});
+
+describe('productImageUrl', () => {
+  it('passes an http(s) URL through', () => {
+    expect(productImageUrl('https://cdn.test/p.jpg')).toBe('https://cdn.test/p.jpg');
+    expect(productImageUrl('http://cdn.test/p.jpg')).toBe('http://cdn.test/p.jpg');
+  });
+
+  it('rejects a javascript: or data: URL — it ends up in an <img src>', () => {
+    expect(productImageUrl('javascript:alert(1)')).toBeNull();
+    expect(productImageUrl('data:image/png;base64,AAAA')).toBeNull();
+  });
+
+  it('rejects a bare path or unparseable value, and treats empty/blank as none', () => {
+    expect(productImageUrl('/images/p.jpg')).toBeNull();
+    expect(productImageUrl('not a url')).toBeNull();
+    expect(productImageUrl('')).toBeNull();
+    expect(productImageUrl('   ')).toBeNull();
+    expect(productImageUrl(null)).toBeNull();
   });
 });

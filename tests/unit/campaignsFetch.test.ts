@@ -33,6 +33,7 @@ const campaign = (slug: string, created_at: string): CampaignRow => ({
   scans: 0,
   uniques: 0,
   leads: 0,
+  product_image_url: null,
 });
 
 const serve = (campaigns: CampaignRow[]) => {
