@@ -14,6 +14,13 @@ export interface AuthState {
   /** A client_accounts row exists for this user AND active = true. */
   hasActiveAccount: boolean;
   mustChangePassword: boolean;
+  /**
+   * One of the 3 Cupdom members (#4). A member has no client_accounts row but is
+   * allowed into the portal to view clients through the picker. Optional so
+   * callers that predate the admin picker keep compiling and behave as before
+   * (undefined = not a member).
+   */
+  isMember?: boolean;
 }
 
 export const LOGIN_ROUTE = '/login';
@@ -46,13 +53,19 @@ export function resolveRedirect(state: AuthState, pathname: string): string | nu
     return isPublicRoute(pathname) ? null : LOGIN_ROUTE;
   }
 
-  // 2. Signed in but not an active portal client — a CRM member, or a
-  //    deactivated account. Back to login, flagged so the page can say why.
-  //    Deliberately NOT an empty dashboard: "you have no access" and "you have
-  //    no data" are different things and must look different (spec §6).
-  //    The pathname guard is load-bearing — returning the login route
-  //    unconditionally would redirect /login to itself, forever.
+  // 2. Signed in but not an active portal client.
   if (!state.hasActiveAccount) {
+    // A Cupdom member (#4): no client_accounts row, but allowed into the portal
+    // to view clients through the picker. Keep them OFF the auth pages like a
+    // client; let them through everywhere else.
+    if (state.isMember) {
+      return pathname === LOGIN_ROUTE || pathname === PASSWORD_ROUTE ? HOME_ROUTE : null;
+    }
+    // Otherwise a deactivated account or a stranger. Back to login, flagged so
+    // the page can say why. Deliberately NOT an empty dashboard: "you have no
+    // access" and "you have no data" are different things and must look
+    // different (spec §6). The pathname guard is load-bearing — returning the
+    // login route unconditionally would redirect /login to itself, forever.
     return pathname === LOGIN_ROUTE ? null : LOGIN_NO_ACCESS_ROUTE;
   }
 

@@ -5,6 +5,8 @@ const anon: AuthState = { signedIn: false, hasActiveAccount: false, mustChangePa
 const noAccount: AuthState = { signedIn: true, hasActiveAccount: false, mustChangePassword: false };
 const mustChange: AuthState = { signedIn: true, hasActiveAccount: true, mustChangePassword: true };
 const ok: AuthState = { signedIn: true, hasActiveAccount: true, mustChangePassword: false };
+// A Cupdom member (#4): signed in, no client_accounts row, but isMember.
+const member: AuthState = { signedIn: true, hasActiveAccount: false, mustChangePassword: false, isMember: true };
 
 describe('isPublicRoute', () => {
   it('treats the login page as public', () => {
@@ -61,6 +63,23 @@ describe('resolveRedirect', () => {
   it('does NOT loop when a user with no account is already on /login', () => {
     // Returning the login route unconditionally here is an infinite redirect.
     expect(resolveRedirect(noAccount, '/login')).toBeNull();
+  });
+
+  it('lets a Cupdom member (no client account) INTO the portal (#4)', () => {
+    // A member has no client_accounts row but may view clients via the picker.
+    expect(resolveRedirect(member, '/')).toBeNull();
+    expect(resolveRedirect(member, '/campagnes')).toBeNull();
+    expect(resolveRedirect(member, '/audience')).toBeNull();
+  });
+
+  it('keeps a signed-in member off the auth pages', () => {
+    expect(resolveRedirect(member, '/login')).toBe('/');
+    expect(resolveRedirect(member, '/mot-de-passe')).toBe('/');
+  });
+
+  it('still bounces a non-member with no account (deactivated / stranger) to login', () => {
+    // The member branch must not weaken the access denial for everyone else.
+    expect(resolveRedirect(noAccount, '/')).toBe('/login?erreur=acces');
   });
 
   it('forces an unchanged temporary password to /mot-de-passe from anywhere', () => {

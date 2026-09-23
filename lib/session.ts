@@ -52,3 +52,22 @@ export const getClientAccount = cache(async (): Promise<ClientAccount | null> =>
     mustChangePassword: data.must_change_password,
   };
 });
+
+/**
+ * Whether the caller is one of the 3 Cupdom members (#4).
+ *
+ * A member has NO client_accounts row, so getClientAccount() returns null and,
+ * without this, they are bounced out of the portal. This asks Postgres — via the
+ * SECURITY DEFINER is_cupdom_member() RPC (added in migration 0018) — which reads
+ * the member allowlist off the caller's JWT. It is the gate that lets an admin
+ * into the portal and unlocks the client picker.
+ *
+ * MEMOISED PER REQUEST, like getClientAccount, so the layout gate and the pages
+ * do not each pay the ~85ms round-trip. A network error resolves to false — the
+ * safe default is "not a member".
+ */
+export const isCupdomMember = cache(async (): Promise<boolean> => {
+  const supabase = await createServerClient();
+  const { data, error } = await supabase.rpc('is_cupdom_member');
+  return !error && data === true;
+});
