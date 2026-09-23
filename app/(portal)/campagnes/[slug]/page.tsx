@@ -126,7 +126,7 @@ export default async function CampagnePage({
           */}
           <Card
             title="Où"
-            subtitle="Villes, sur la période sélectionnée. Personnes = comptage unique par jour, par campagne."
+            subtitle="Villes, sur la période sélectionnée. Personnes = comptage unique par jour, par campagne. Localisation approximative, déduite de l’adresse IP — peu précise sur mobile, où l’opérateur peut situer le scan dans sa région plutôt que dans la vraie ville."
           >
             <RankedBars ranking={villes} colour={CHARTE.bleu} />
           </Card>

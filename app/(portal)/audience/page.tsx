@@ -110,7 +110,7 @@ export default async function AudiencePage({
         */}
         <Card
           title="Où"
-          subtitle="Classé par scans, sur la période sélectionnée. Personnes = comptage unique par jour, par campagne."
+          subtitle="Classé par scans, sur la période sélectionnée. Personnes = comptage unique par jour, par campagne. Localisation approximative, déduite de l’adresse IP — peu précise sur mobile, où l’opérateur peut situer le scan dans sa région plutôt que dans la vraie ville."
           action={<GeoLevelPicker levels={geoLevelsFor()} current={level} />}
         >
           <RankedBars ranking={ranking} colour={CHARTE.bleu} />
