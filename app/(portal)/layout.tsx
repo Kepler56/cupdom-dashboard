@@ -1,8 +1,10 @@
 import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
+import { Suspense } from 'react';
 import { getClientAccount, isCupdomMember } from '@/lib/session';
 import { resolveRedirect } from '@/lib/auth/routes';
 import { Sidebar } from '@/components/organisms/Sidebar';
+import { SidebarNav } from '@/components/organisms/SidebarNav';
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
   // Both memoised per request, so the pages pay nothing to read them again.
@@ -33,7 +35,11 @@ export default async function PortalLayout({ children }: { children: React.React
     <div className="flex min-h-dvh">
       {/* Below `lg` the 240 px column becomes the drawer in TopBar's MobileNav. */}
       <div className="hidden lg:flex">
-        <Sidebar pathname={pathname} client={client} />
+        {/* useSearchParams needs a Suspense boundary. The header-derived Sidebar is
+            only the first-paint fallback; SidebarNav takes over from the real url. */}
+        <Suspense fallback={<Sidebar pathname={pathname} client={client} />}>
+          <SidebarNav />
+        </Suspense>
       </div>
       <div className="flex min-w-0 flex-1 flex-col">{children}</div>
     </div>
